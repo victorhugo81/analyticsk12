@@ -1,0 +1,316 @@
+{% extends 'base.html' %}
+{% import 'includes/rate_indicator.html' as ri %}
+{% block content %}
+
+<div class="row">
+  <div class="col-12">
+    <div class="main-card-box card my-4">
+
+      <div class="card-header p-0 position-relative mt-n4 mx-3 z-index-2">
+        <div class="bg-gradient-main shadow-dark border-radius-lg pt-4 pb-3 d-flex justify-content-between align-items-center flex-wrap">
+          <h2 class="text-white ps-3 mb-0">
+            <i class="material-symbols-rounded opacity-5">report</i> Discipline Dashboard
+          </h2>
+          <a href="{{ url_for('routes.index') }}" class="btn btn-sm btn-outline-light no-print me-3 mb-0">
+            <i class="material-symbols-rounded icon-inline">arrow_back</i> Back to Home
+          </a>
+        </div>
+      </div>
+
+      <div class="card-body px-4 pb-5 pt-3">
+
+        <!-- Toolbar -->
+        <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+          <p class="text-sm text-muted mb-0">Incident analytics and behavior breakdowns.</p>
+          <div class="d-flex gap-1 no-print">
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="printDashboard()">
+              <i class="material-symbols-rounded icon-inline">picture_as_pdf</i> Export
+            </button>
+          </div>
+        </div>
+
+        <!-- KPI Cards -->
+        <div class="demo-kpi-grid mb-3">
+          <a class="demo-kpi" href="{{ url_for('routes.incidents') }}">
+            <div class="demo-kpi-icon kpi-icon--critical">
+              <i class="material-symbols-rounded">report</i>
+            </div>
+            <div>
+              <div class="demo-kpi-label">Total Incidents</div>
+              <div class="demo-kpi-value">{{ total_incidents }}</div>
+              <div class="demo-kpi-sub">All recorded</div>
+            </div>
+          </a>
+          <div class="demo-kpi">
+            <div class="demo-kpi-icon kpi-icon--info">
+              <i class="material-symbols-rounded">percent</i>
+            </div>
+            <div>
+              <div class="demo-kpi-label">Incident Rate</div>
+              <div class="demo-kpi-value">{{ incident_rate }}%</div>
+              <div class="demo-kpi-sub">Per 100 enrolled</div>
+            </div>
+          </div>
+          <a class="demo-kpi" href="{{ url_for('routes.incidents') }}?type_filter=major">
+            <div class="demo-kpi-icon kpi-icon--critical">
+              <i class="material-symbols-rounded">warning</i>
+            </div>
+            <div>
+              <div class="demo-kpi-label">Major Incidents</div>
+              <div class="demo-kpi-value">{{ major_count }}</div>
+              <div class="demo-kpi-sub">{{ ((major_count / total_incidents * 100) | round(1)) if total_incidents else 0 }}% of total</div>
+            </div>
+          </a>
+          <a class="demo-kpi" href="{{ url_for('routes.incidents') }}?type_filter=minor">
+            <div class="demo-kpi-icon kpi-icon--warning">
+              <i class="material-symbols-rounded">info</i>
+            </div>
+            <div>
+              <div class="demo-kpi-label">Minor Incidents</div>
+              <div class="demo-kpi-value">{{ minor_count }}</div>
+              <div class="demo-kpi-sub">{{ ((minor_count / total_incidents * 100) | round(1)) if total_incidents else 0 }}% of total</div>
+            </div>
+          </a>
+        </div>
+
+        <!-- Suspension Rate indicator -->
+        {{ ri.rate_indicator_card(
+          'Suspension Rate',
+          'Share of enrolled students with at least one suspension day, for the full school year — comparable year over year.',
+          indicator_yr, sr_pct, sr_count, sr_total, sr_status, sr_change, sr_site_rows
+        ) }}
+
+        <!-- Row 1: Incidents by Month + by Day of Week -->
+        <div class="row g-3 mb-3">
+          <div class="col-12 col-lg-8">
+            <div class="chart-card">
+              <div class="chart-card-title">Incidents by Month</div>
+              <div class="chart-wrap chart-wrap--bar">
+                <canvas id="chart-month"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="col-12 col-lg-4">
+            <div class="chart-card">
+              <div class="chart-card-title">Incidents by Day of Week</div>
+              <div class="chart-wrap chart-wrap--hbar">
+                <canvas id="chart-dow"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 2: By Gender (donut) + By Grade (bar) -->
+        <div class="row g-3 mb-3">
+          <div class="col-12 col-lg-4">
+            <div class="chart-card">
+              <div class="chart-card-title">Incidents by Gender</div>
+              <div class="chart-wrap chart-wrap--donut">
+                <canvas id="chart-gender"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="col-12 col-lg-8">
+            <div class="chart-card">
+              <div class="chart-card-title">Incidents by Grade</div>
+              <div class="chart-wrap chart-wrap--bar">
+                <canvas id="chart-grade"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 3: Top Infractions + Site Detail Table -->
+        <div class="row g-3 mb-3">
+          <div class="col-12 col-lg-6">
+            <div class="chart-card">
+              <div class="chart-card-title">Top Infractions</div>
+              <div class="chart-wrap chart-wrap--hbar">
+                <canvas id="chart-infractions"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="col-12 col-lg-6">
+            <div class="chart-card">
+              <div class="chart-card-title">Incidents by Site — Detail</div>
+              <div class="table-responsive mt-2">
+                <table class="table table-sm table-hover align-middle mb-0">
+                  <thead>
+                    <tr>
+                      <th class="text-xs text-uppercase text-muted fw-bold">Site</th>
+                      <th class="text-xs text-uppercase text-muted fw-bold text-center">Major</th>
+                      <th class="text-xs text-uppercase text-muted fw-bold text-center">Minor</th>
+                      <th class="text-xs text-uppercase text-muted fw-bold text-center">Total</th>
+                      <th class="text-xs text-uppercase text-muted fw-bold text-center">Suspended Days</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for site_key, counts in site_table_data %}
+                    <tr>
+                      <td class="fw-bold text-sm">
+                        <a href="{{ url_for('routes.incidents') }}?site_filter={{ site_key }}"
+                           class="text-dark text-decoration-none">{{ site_key }}</a>
+                      </td>
+                      <td class="text-center"><span class="badge bg-danger">{{ counts.major }}</span></td>
+                      <td class="text-center"><span class="badge bg-warning text-dark">{{ counts.minor }}</span></td>
+                      <td class="text-center fw-bold">{{ counts.major + counts.minor }}</td>
+                      <td class="text-center text-muted">{{ counts.susp | round(1) }}</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 4: Incidents by Site (bar) -->
+        <div class="row g-3 mb-3">
+          <div class="col-12">
+            <div class="chart-card">
+              <div class="chart-card-title">Incidents by Site</div>
+              <div class="chart-wrap chart-wrap--bar">
+                <canvas id="chart-site"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/plugins/chartjs.min.js') }}"></script>
+<script>
+const _month_labels      = {{ month_labels | tojson }};
+const _month_counts      = {{ month_counts | tojson }};
+const _dow_labels        = {{ dow_labels | tojson }};
+const _dow_counts        = {{ dow_counts | tojson }};
+const _site_labels       = {{ site_labels | tojson }};
+const _site_counts       = {{ site_counts | tojson }};
+const _infraction_labels = {{ infraction_labels | tojson }};
+const _infraction_counts = {{ infraction_counts | tojson }};
+const _gender_labels     = {{ gender_labels | tojson }};
+const _gender_counts     = {{ gender_counts | tojson }};
+const _grade_labels      = {{ grade_labels | tojson }};
+const _grade_counts      = {{ grade_counts | tojson }};
+
+const RED     = '#dc2626';
+const AMBER   = '#ca8a04';
+const PURPLE  = '#7c3aed';
+const BLUE    = '#1d4ed8';
+const PALETTE = ['#1d4ed8','#be185d','#7c3aed','#6b7280'];
+
+const barOpts = (color) => ({
+  responsive: true, maintainAspectRatio: false,
+  plugins: { legend: { display: false } },
+  scales: {
+    y: { beginAtZero: true, ticks: { precision: 0, color: '#737373', font: { size: 11 } }, grid: { color: '#e5e5e5' } },
+    x: { ticks: { color: '#737373', font: { size: 11 } }, grid: { display: false } }
+  }
+});
+
+// By Month
+new Chart(document.getElementById('chart-month'), {
+  type: 'bar',
+  data: { labels: _month_labels, datasets: [{ label: 'Incidents', data: _month_counts,
+    backgroundColor: '#0f766e', borderRadius: 5, borderSkipped: false }] },
+  options: barOpts('#0f766e')
+});
+
+// By Day of Week
+new Chart(document.getElementById('chart-dow'), {
+  type: 'bar',
+  data: { labels: _dow_labels, datasets: [{ label: 'Incidents', data: _dow_counts,
+    backgroundColor: PURPLE, borderRadius: 5, borderSkipped: false }] },
+  options: {
+    indexAxis: 'y',
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { beginAtZero: true, ticks: { precision: 0, color: '#737373', font: { size: 11 } }, grid: { color: '#e5e5e5' } },
+      y: { ticks: { color: '#737373', font: { size: 11 } }, grid: { display: false } }
+    }
+  }
+});
+
+// By Site (bar)
+new Chart(document.getElementById('chart-site'), {
+  type: 'bar',
+  data: { labels: _site_labels, datasets: [{ label: 'Incidents', data: _site_counts,
+    backgroundColor: BLUE, borderRadius: 5, borderSkipped: false }] },
+  options: barOpts(BLUE)
+});
+
+// By Gender (donut)
+new Chart(document.getElementById('chart-gender'), {
+  type: 'doughnut',
+  data: { labels: _gender_labels, datasets: [{ data: _gender_counts,
+    backgroundColor: PALETTE, borderWidth: 2, borderColor: '#fff' }] },
+  options: {
+    responsive: true, maintainAspectRatio: false, cutout: '62%',
+    plugins: {
+      legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } },
+      tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed} (${((ctx.parsed / ctx.dataset.data.reduce((a,b)=>a+b,0))*100).toFixed(1)}%)` } }
+    }
+  }
+});
+
+// Top Infractions (horizontal bar)
+new Chart(document.getElementById('chart-infractions'), {
+  type: 'bar',
+  data: { labels: _infraction_labels, datasets: [{ label: 'Count', data: _infraction_counts,
+    backgroundColor: AMBER, borderRadius: 4, borderSkipped: false }] },
+  options: {
+    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { beginAtZero: true, ticks: { precision: 0, color: '#737373', font: { size: 11 } }, grid: { color: '#e5e5e5' } },
+      y: { ticks: { color: '#737373', font: { size: 11 } }, grid: { display: false } }
+    }
+  }
+});
+
+// By Grade
+new Chart(document.getElementById('chart-grade'), {
+  type: 'bar',
+  data: { labels: _grade_labels, datasets: [{ label: 'Incidents', data: _grade_counts,
+    backgroundColor: '#0f766e', borderRadius: 5, borderSkipped: false }] },
+  options: barOpts('#0f766e')
+});
+
+function printDashboard() {
+  const body = document.querySelector('.card-body');
+  const PRINT_CHART_H = '150px';
+  const swaps = [];
+  document.querySelectorAll('.chart-wrap canvas').forEach(canvas => {
+    const wrap = canvas.closest('.chart-wrap');
+    const img  = document.createElement('img');
+    img.src    = canvas.toDataURL('image/png');
+    img.style.cssText = 'width:100%;height:100%;object-fit:fill;display:block;';
+    canvas.insertAdjacentElement('afterend', img);
+    canvas.style.display = 'none';
+    if (wrap) { wrap._ph = wrap.style.height; wrap.style.height = PRINT_CHART_H; }
+    swaps.push({ canvas, img, wrap });
+  });
+  body.style.zoom = '1';
+  void body.offsetHeight;
+  const PAGE_W = Math.round((297 - 0.8) / 25.4 * 96);
+  const PAGE_H = Math.round((210 - 0.8) / 25.4 * 96);
+  body.style.zoom = Math.min(PAGE_W / body.scrollWidth, PAGE_H / body.scrollHeight, 1).toFixed(4);
+  setTimeout(() => {
+    window.print();
+    setTimeout(() => {
+      body.style.zoom = '';
+      swaps.forEach(({ canvas, img, wrap }) => {
+        canvas.style.display = '';
+        img.remove();
+        if (wrap) wrap.style.height = wrap._ph;
+      });
+    }, 500);
+  }, 250);
+}
+</script>
+
+{% endblock %}

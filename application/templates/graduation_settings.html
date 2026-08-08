@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+{% block content %}
+
+
+    <!-- main content card -->
+
+<div class="row">
+    <div class="col-12">
+        <div class="main-card-box card my-4">
+        <div class="card-header p-0 position-relative mt-n4 mx-3 z-index-2">
+        <div class="bg-gradient-main custom-title-card">
+          <h2 class="text-white text-capitalize ps-3"><i class="material-symbols-rounded opacity-5">school</i> {{ current_page_name }}</h2>
+          </div>
+          <div class="card-body px-0 pb-2">
+            <br>
+
+            <div class="container-md mb-3">
+                <p class="text-sm text-muted mb-1">
+                    Defines the subject-area credit requirements shown on each student's <strong>Graduation</strong> tab.
+                    A course counts toward a subject area if its <strong>Department</strong> matches (and, optionally, its course
+                    name contains/excludes a keyword). Any course that matches no row below falls into whichever
+                    row is marked <strong>Catch-All</strong>.
+                </p>
+                <p class="text-sm text-muted mb-1">
+                    <strong>Grade Span</strong> controls the Graduation Status dashboard's pacing: a subject typically taken in a
+                    single year (e.g. Algebra I in 9th grade) is expected fully complete by the end of that year, not spread evenly
+                    across all 4 years — so a freshman who's finished their actual 9th-grade coursework shows as On Track instead
+                    of being penalized for subjects (like CTE or 11th/12th-grade Social Science) that aren't due yet.
+                </p>
+                <span class="badge bg-gradient-dark">Total Credits Required: {{ '%.2f' | format(total_credits) }}</span>
+            </div>
+
+            <div class="table-per-page-section">
+            <div class="row row justify-content-between">
+              <div class="col-2 text-end offset-10">
+              <a href="{{ url_for('routes.add_graduation_requirement') }}" type="button" class="btn bg-gradient-main add-table-button shadow-dark">Add Subject Area</a>
+            </div>
+          </div>
+        </div>
+    <!-- pause main content card -->
+
+        <!-- main content table -->
+          <div class="table-responsive p-0">
+            <table class="table align-items-right mb-0 table-striped">
+              <thead>
+                <tr>
+                  <th class="text-uppercase text-xxs font-weight-bolder text-start" style="width:20px;">Order</th>
+                  <th class="text-uppercase text-xxs font-weight-bolder text-center">Subject Area</th>
+                  <th class="text-uppercase text-xxs font-weight-bolder text-end">Credits</th>
+                  <th class="text-uppercase text-xxs font-weight-bolder text-center">Departments</th>
+                  <th class="text-uppercase text-xxs font-weight-bolder text-center">Name Contains</th>
+                  <th class="text-uppercase text-xxs font-weight-bolder text-center">Name Excludes</th>
+                  <th class="text-uppercase text-xxs font-weight-bolder text-center">Catch-All</th>
+                  <th class="text-uppercase text-xxs font-weight-bolder text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for req in requirements %}
+                <tr class="table-highlight-row">
+                  <td style="width:20px;">
+                    <div class="d-flex px-2 py-1">
+                      <div class="d-flex flex-column justify-content-center">
+                        <h6 class="mb-0 text-sm">{{ req.sort_order }}</h6>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="text-center">
+                    <div class="d-flex px-2 py-1 justify-content-center">
+                      <div class="d-flex flex-column justify-content-center">
+                        <h6 class="mb-0 text-sm">{{ req.subject_name }}</h6>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="text-end text-sm">{{ '%.2f' | format(req.credits_required) }}</td>
+                  <td class="text-center text-xs text-muted">{{ req.departments or '—' }}</td>
+                  <td class="text-center text-xs text-muted">{{ req.name_keywords or '—' }}</td>
+                  <td class="text-center text-xs text-muted">{{ req.name_exclude_keywords or '—' }}</td>
+                  <td class="text-center">
+                    {% if req.is_catch_all %}
+                    <span class="badge badge-sm bg-gradient-success">Yes</span>
+                    {% else %}
+                    <span class="text-muted text-xs">—</span>
+                    {% endif %}
+                  </td>
+                  <td class="align-middle">
+                    <div class="d-flex justify-content-center gap-2">
+                      <a href="{{ url_for('routes.edit_graduation_requirement', req_id=req.id) }}" type="button" class="btn table-button-edit font-weight-bold" aria-label="Edit subject area: {{ req.subject_name }}">
+                        <i class="material-symbols-rounded position-relative text-lg">edit</i>
+                      </a>
+                      <form id="delete-grad-req-{{ req.id }}" action="{{ url_for('routes.delete_graduation_requirement', req_id=req.id) }}" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="button" class="btn table-button-delete font-weight-bold"
+                                aria-label="Delete subject area: {{ req.subject_name }}"
+                                data-bs-toggle="modal"
+                                data-bs-target="#deleteConfirmModal"
+                                data-confirm-message="Are you sure you want to delete the subject area &quot;{{ req.subject_name }}&quot;?"
+                                data-form-id="delete-grad-req-{{ req.id }}">
+                          <i class="material-symbols-rounded position-relative text-lg">delete</i>
+                        </button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+                {% else %}
+                <tr>
+                  <td colspan="9" class="text-center text-muted py-4">No subject areas configured yet.</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        <!-- end content table -->
+
+
+    <!-- continue main content card -->
+  </div>
+</div>
+</div>
+</div>
+<!-- End main content card -->
+
+{% endblock %}

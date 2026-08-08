@@ -1,0 +1,149 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="row">
+  <div class="col-12">
+    <div class="main-card-box card my-4">
+      <div class="card-header p-0 position-relative mt-n4 mx-3 z-index-2">
+        <div class="bg-gradient-main shadow-dark border-radius-lg pt-4 pb-3">
+          <h2 class="text-white ps-3">
+            <i class="material-symbols-rounded opacity-5">menu_book</i>
+            {{ course.course_name }}
+          </h2>
+        </div>
+      </div>
+      <div class="card-body px-4 pb-4">
+
+        <!-- Course Information -->
+        <p class="text-uppercase text-sm text-muted fw-bold mb-2 mt-3">Course Information</p>
+        <hr class="mt-0 mb-3">
+        <div class="row g-3 mb-4">
+          <div class="col-12 col-sm-6 col-lg-4">
+            <p class="text-xs text-muted mb-0">Course Name</p>
+            <p class="text-sm font-weight-bold mb-0">{{ course.course_name }}</p>
+          </div>
+          <div class="col-12 col-sm-6 col-lg-4">
+            <p class="text-xs text-muted mb-0">Section ID</p>
+            <p class="text-sm font-weight-bold mb-0 text-uppercase">{{ course.section_id }}</p>
+          </div>
+          <div class="col-12 col-sm-6 col-lg-4">
+            <p class="text-xs text-muted mb-0">Grade Level</p>
+            <p class="text-sm font-weight-bold mb-0">{{ course.grade_level or '—' }}</p>
+          </div>
+          <div class="col-12 col-sm-6 col-lg-4">
+            <p class="text-xs text-muted mb-0">Department</p>
+            <p class="text-sm font-weight-bold mb-0">{{ course.department or '—' }}</p>
+          </div>
+          <div class="col-12 col-sm-6 col-lg-4">
+            <p class="text-xs text-muted mb-0">Period</p>
+            <p class="text-sm font-weight-bold mb-0">{{ course.period or '—' }}</p>
+          </div>
+          <div class="col-12 col-sm-6 col-lg-4">
+            <p class="text-xs text-muted mb-0">Site</p>
+            <p class="text-sm font-weight-bold mb-0">{{ course.site.site_name }}</p>
+          </div>
+          <div class="col-12 col-sm-6 col-lg-4">
+            <p class="text-xs text-muted mb-0">Status</p>
+            <span class="badge badge-sm {{ 'bg-success' if course.status == 'Active' else 'bg-secondary' }}">
+              {{ course.status }}
+            </span>
+          </div>
+          <div class="col-12 col-sm-6 col-lg-4">
+            <p class="text-xs text-muted mb-0">Enrolled / Max Students</p>
+            <p class="text-sm font-weight-bold mb-0">
+              {{ course.active_students | length }}
+              {% if course.max_students %}
+                / {{ course.max_students }}
+                {% set enrolled = course.active_students | length %}
+                {% if enrolled >= course.max_students %}
+                  <span class="badge bg-danger ms-1">Full</span>
+                {% elif enrolled >= (course.max_students * 0.9) | int %}
+                  <span class="badge bg-warning text-dark ms-1">Near capacity</span>
+                {% endif %}
+              {% endif %}
+            </p>
+          </div>
+          {% if course.description %}
+          <div class="col-12">
+            <p class="text-xs text-muted mb-0">Description</p>
+            <p class="text-sm mb-0">{{ course.description }}</p>
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- Teacher -->
+        <p class="text-uppercase text-sm text-muted fw-bold mb-2 mt-5">Teacher</p>
+        <hr class="mt-0 mb-3">
+        <div class="row g-3 mb-4">
+          <div class="col-12 col-sm-6 col-lg-4">
+            <p class="text-xs text-muted mb-0">Assigned Teacher</p>
+            {% if course.teacher %}
+            <a href="{{ url_for('routes.teacher_details', teacher_id=course.teacher.id) }}"
+               class="text-sm font-weight-bold text-dark text-capitalize">
+              {{ course.teacher.last_name }}, {{ course.teacher.first_name }}
+            </a>
+            {% else %}
+            <p class="text-sm font-weight-bold mb-0">—</p>
+            {% endif %}
+          </div>
+          <div class="col-12 col-sm-6 col-lg-4">
+            <p class="text-xs text-muted mb-0">Email</p>
+            <p class="text-sm font-weight-bold mb-0">{{ course.teacher.email if course.teacher and course.teacher.email else '—' }}</p>
+          </div>
+        </div>
+
+        <!-- Enrolled Students -->
+        <p class="text-uppercase text-sm text-muted fw-bold mb-2 mt-5">
+          Enrolled Students
+          <span class="badge bg-secondary ms-1">{{ course.active_students | length }}</span>
+        </p>
+        <hr class="mt-0 mb-3">
+        {% if course.students %}
+        <div class="table-responsive">
+          <table class="table align-items-center mb-0 table-striped">
+            <thead>
+              <tr>
+                <th class="text-uppercase text-xxs font-weight-bolder">Name</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Student ID</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Grade</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Start Date</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Leave Date</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for student in course.students %}
+              {% set dates = student_dates.get(student.id) %}
+              {% set start_date = dates[0] if dates else None %}
+              {% set leave_date = dates[1] if dates else None %}
+              <tr class="table-highlight-row {{ 'text-muted' if leave_date else '' }}">
+                <td>
+                  <a href="{{ url_for('routes.student_details', student_id=student.id) }}"
+                     class="text-sm font-weight-bold text-dark text-capitalize">
+                    {{ student.last_name }}, {{ student.first_name }}
+                  </a>
+                </td>
+                <td class="text-center"><p class="text-xs font-weight-bold mb-0">{{ student.student_id }}</p></td>
+                <td class="text-center"><p class="text-xs font-weight-bold mb-0">{{ student.grade }}</p></td>
+                <td class="text-center"><p class="text-xs font-weight-bold mb-0">{{ start_date.strftime('%m/%d/%y') if start_date else '—' }}</p></td>
+                <td class="text-center"><p class="text-xs font-weight-bold mb-0">{{ leave_date.strftime('%m/%d/%y') if leave_date else '—' }}</p></td>
+                <td class="text-center">
+                  <span class="badge badge-sm {{ 'bg-secondary' if leave_date else 'bg-success' }}">
+                    {{ 'Inactive' if leave_date else 'Active' }}
+                  </span>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p class="text-sm text-muted">No students enrolled.</p>
+        {% endif %}
+
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

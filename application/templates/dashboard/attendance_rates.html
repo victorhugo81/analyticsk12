@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="row">
+  <div class="col-12">
+    <div class="main-card-box card my-4">
+
+      <div class="card-header p-0 position-relative mt-n4 mx-3 z-index-2">
+        <div class="bg-gradient-main shadow-dark border-radius-lg pt-4 pb-3 d-flex justify-content-between align-items-center flex-wrap">
+          <h2 class="text-white ps-3 mb-0">
+            <i class="material-symbols-rounded opacity-5">trending_up</i> Attendance Rates
+          </h2>
+          <a href="{{ url_for('routes.index') }}" class="btn btn-sm btn-outline-light no-print me-3 mb-0">
+            <i class="material-symbols-rounded icon-inline">arrow_back</i> Back to Home
+          </a>
+        </div>
+      </div>
+
+      <div class="card-body px-4 pb-5 pt-3">
+
+        <!-- Toolbar -->
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+          <p class="text-sm text-muted mb-0">Attendance rate by course and grade level — {{ school_days }} school days elapsed.</p>
+          <select id="gradeFilter" class="form-select form-select-sm" style="width:auto;">
+            <option value="">All Grades</option>
+            {% for grade in sorted_grades %}
+            <option value="{{ grade }}">Grade {{ grade }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- KPI Cards -->
+        <div class="demo-kpi-grid mb-4">
+          <div class="demo-kpi">
+            <div class="demo-kpi-icon" style="background:#dcfce7;">
+              <i class="material-symbols-rounded" style="color:#15803d;">trending_up</i>
+            </div>
+            <div>
+              <div class="demo-kpi-label">Overall ATT%</div>
+              <div class="demo-kpi-value" style="color:{{ '#15803d' if overall_att >= 95 else '#b45309' if overall_att >= 90 else '#b91c1c' }};">
+                {{ overall_att }}%
+              </div>
+              <div class="demo-kpi-sub">{{ total_enrolled }} students enrolled</div>
+            </div>
+          </div>
+          <div class="demo-kpi">
+            <div class="demo-kpi-icon kpi-icon--info">
+              <i class="material-symbols-rounded">emoji_events</i>
+            </div>
+            <div>
+              <div class="demo-kpi-label">Best Grade</div>
+              <div class="demo-kpi-value text-status-info">{{ best_grade }}</div>
+              <div class="demo-kpi-sub">{{ best_grade_att }}% attendance</div>
+            </div>
+          </div>
+          <div class="demo-kpi">
+            <div class="demo-kpi-icon kpi-icon--info">
+              <i class="material-symbols-rounded">person</i>
+            </div>
+            <div>
+              <div class="demo-kpi-label">Top Teacher</div>
+              <div class="demo-kpi-value text-status-info" style="font-size:1.1rem;">
+                {% if best_course %}{{ best_course.teacher }}{% else %}—{% endif %}
+              </div>
+              <div class="demo-kpi-sub">
+                {% if best_course %}{{ best_course.section_id }}{% endif %}
+              </div>
+            </div>
+          </div>
+          <div class="demo-kpi">
+            <div class="demo-kpi-icon" style="background:#dcfce7;">
+              <i class="material-symbols-rounded" style="color:#15803d;">star</i>
+            </div>
+            <div>
+              <div class="demo-kpi-label">Best Course ATT%</div>
+              <div class="demo-kpi-value" style="color:#15803d;">
+                {% if best_course %}{{ best_course.att_pct }}%{% else %}—{% endif %}
+              </div>
+              <div class="demo-kpi-sub">
+                {% if best_course %}{{ best_course.section_id }}{% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Grade Tables -->
+        {% for grade in sorted_grades %}
+        {% set rows = grades_data[grade] %}
+        {% set grade_avg = (rows | sum(attribute='att_pct') / rows | length) | round(1) %}
+        <div class="chart-card mb-3" data-grade="{{ grade }}">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="chart-card-title mb-0">
+              Grade {{ grade }}
+              <span class="badge ms-2 {{ 'bg-success' if grade_avg >= 95 else 'bg-warning text-dark' if grade_avg >= 90 else 'bg-danger' }}">
+                {{ grade_avg }}% avg ATT
+              </span>
+            </div>
+            <span class="text-xs text-muted">{{ rows | length }} course{{ 's' if rows | length != 1 }}</span>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th class="text-xs text-uppercase text-muted fw-bold">Teacher</th>
+                  <th class="text-xs text-uppercase text-muted fw-bold text-center">Course</th>
+                  <th class="text-xs text-uppercase text-muted fw-bold text-center">Section ID</th>
+                  <th class="text-xs text-uppercase text-muted fw-bold text-center">Enrolled</th>
+                  <th class="text-xs text-uppercase text-muted fw-bold text-center">Absences</th>
+                  <th class="text-xs text-uppercase text-muted fw-bold text-center">ATT%</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in rows | sort(attribute='att_pct', reverse=True) %}
+                <tr>
+                  <td>
+                    {% if row.teacher_id %}
+                    <a href="{{ url_for('routes.teacher_details', teacher_id=row.teacher_id) }}"
+                       class="text-sm fw-bold text-dark text-decoration-none" style="transition:color .15s;">
+                      {{ row.teacher }}
+                    </a>
+                    {% else %}
+                    <span class="text-sm fw-bold text-dark">{{ row.teacher }}</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-center">
+                    <a href="{{ url_for('routes.course_details', course_id=row.course_id) }}"
+                       class="text-xs text-dark text-decoration-none">
+                      {{ row.course_name }}
+                    </a>
+                  </td>
+                  <td class="text-center"><span class="text-xs text-muted text-uppercase">{{ row.section_id }}</span></td>
+                  <td class="text-center"><span class="text-xs fw-bold">{{ row.enrolled }}</span></td>
+                  <td class="text-center"><span class="text-xs text-muted">{{ row.absences }}</span></td>
+                  <td class="text-center">
+                    <span class="badge {{ 'bg-success' if row.att_pct >= 95 else 'bg-warning text-dark' if row.att_pct >= 90 else 'bg-danger' }}">
+                      {{ row.att_pct }}%
+                    </span>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {% else %}
+        <p class="text-sm text-muted py-4 text-center">No active courses found.</p>
+        {% endfor %}
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.getElementById('gradeFilter').addEventListener('change', function () {
+    var selected = this.value;
+    document.querySelectorAll('.chart-card[data-grade]').forEach(function (card) {
+      card.style.display = (!selected || card.dataset.grade === selected) ? '' : 'none';
+    });
+  });
+</script>
+
+{% endblock %}

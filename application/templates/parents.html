@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="row">
+  <div class="col-12">
+    <div class="main-card-box card my-4">
+      <div class="card-header p-0 position-relative mt-n4 mx-3 z-index-2">
+        <div class="bg-gradient-main custom-title-card">
+          <h2 class="text-white text-capitalize ps-3">
+            <i class="material-symbols-rounded opacity-5">family_restroom</i> {{ current_page_name }}
+          </h2>
+        </div>
+      </div>
+      <div class="card-body px-4 pb-4">
+        <br>
+
+        <!-- Search box -->
+        <div class="search-content-box mb-4">
+          <div class="row justify-content-between">
+            <div class="col">
+              <form method="get" class="d-flex">
+                <input type="text" name="search" class="search-field-box form-control" placeholder="Search by name or email"
+                       value="{{ request.args.get('search', '') }}">
+                <button type="submit" class="btn bg-gradient-main search-button-box shadow-dark">Search</button>
+                <a href="{{ url_for('routes.parents') }}" type="button" class="btn reset-button-box shadow-dark">Reset</a>
+              </form>
+            </div>
+          </div>
+        </div>
+        <!-- end search box -->
+
+        <div class="table-per-page-section mt-4">
+          <div class="row justify-content-between">
+            <div class="col-4">
+              <form method="get" class="d-flex">
+                <label for="per_page">Items per page: </label>
+                <select name="per_page" id="per_page" class="per-page-drop" onchange="this.form.submit()">
+                  <option value="10" {% if per_page == 10 %}selected{% endif %}>10</option>
+                  <option value="25" {% if per_page == 25 %}selected{% endif %}>25</option>
+                  <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
+                </select>
+              </form>
+            </div>
+            <div class="col-2 text-end"></div>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="table-responsive">
+          <table class="table align-items-center mb-0 table-striped">
+            <thead>
+              <tr>
+                <th class="text-uppercase text-xxs font-weight-bolder">Name</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Relationship</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Email</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Phone</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Students</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for parent in parents %}
+              <tr class="table-highlight-row clickable-row"
+                  data-href="{{ url_for('routes.parent_details', parent_id=parent.id) }}"
+                  style="cursor:pointer;">
+                <td>
+                  <div class="d-flex px-2 py-1">
+                    <div class="d-flex flex-column justify-content-center">
+                      <h6 class="mb-0 text-sm text-capitalize"  style="color:#000 !important;">{{ parent.last_name }}, {{ parent.first_name }} {{ parent.middle_name or '' }}</h6>
+                    </div>
+                  </div>
+                </td>
+                <td class="text-center">
+                  <p class="text-xs font-weight-bold mb-0">{{ parent.relationship or '—' }}</p>
+                </td>
+                <td class="text-center">
+                  <p class="text-xs font-weight-bold mb-0">{{ parent.email or '—' }}</p>
+                </td>
+                <td class="text-center">
+                  <p class="text-xs font-weight-bold mb-0">{{ parent.phone or '—' }}</p>
+                </td>
+                <td class="text-center">
+                  <p class="text-xs font-weight-bold mb-0">{{ parent.students | length }}</p>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <nav aria-label="Page navigation">
+          <ul class="pagination">
+            {{ pagination.links }}
+          </ul>
+        </nav>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.querySelectorAll('tr.clickable-row').forEach(row => {
+  row.addEventListener('click', () => window.location = row.dataset.href);
+});
+</script>
+{% endblock %}

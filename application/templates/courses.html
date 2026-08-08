@@ -1,0 +1,165 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  .course-link:hover { color: var(--bs-main-color-primary, #1d4ed8) !important; font-weight: 600 !important; }
+  .teacher-link:hover { color: var(--bs-main-color-primary, #1d4ed8) !important; font-weight: 600 !important; }
+</style>
+
+<div class="row">
+  <div class="col-12">
+    <div class="main-card-box card my-4">
+      <div class="card-header p-0 position-relative mt-n4 mx-3 z-index-2">
+        <div class="bg-gradient-main custom-title-card">
+          <h2 class="text-white text-capitalize ps-3">
+            <i class="material-symbols-rounded opacity-5">menu_book</i> {{ current_page_name }}
+          </h2>
+        </div>
+      </div>
+      <div class="card-body px-4 pb-4">
+        <br>
+
+        <!-- Search box -->
+        <div class="search-content-box mb-4">
+          <div class="row justify-content-between">
+            <div class="col">
+              <form method="get" class="d-flex">
+                <input type="hidden" name="site_filter" value="{{ request.args.get('site_filter', '') }}">
+                <input type="hidden" name="grade_filter" value="{{ request.args.get('grade_filter', '') }}">
+                <input type="text" name="search" class="search-field-box form-control" placeholder="Search by course name or code"
+                       value="{{ request.args.get('search', '') }}">
+                <button type="submit" class="btn bg-gradient-main search-button-box shadow-dark">Search</button>
+                <a href="{{ url_for('routes.courses') }}" type="button" class="btn reset-button-box shadow-dark">Reset</a>
+              </form>
+            </div>
+          </div>
+
+          <div class="row justify-content-between">
+            <div class="col">
+              <label class="filter-labels text-sm mb-0">Filter By Site</label>
+              <form method="get" class="d-flex">
+                <input type="hidden" name="search" value="{{ request.args.get('search', '') }}">
+                <input type="hidden" name="grade_filter" value="{{ request.args.get('grade_filter', '') }}">
+                <input type="hidden" name="dept_filter" value="{{ dept_filter }}">
+                <select name="site_filter" class="form-select-box form-select" onchange="this.form.submit()">
+                  <option value="">All Sites</option>
+                  {% for site in sites %}
+                  <option value="{{ site.id }}" {% if request.args.get('site_filter', '')|int == site.id %}selected{% endif %}>
+                    {{ site.site_name }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </form>
+            </div>
+            <div class="col mb-4">
+              <label class="filter-labels text-sm mb-0">Filter By Grade Level</label>
+              <form method="get" class="d-flex">
+                <input type="hidden" name="search" value="{{ request.args.get('search', '') }}">
+                <input type="hidden" name="site_filter" value="{{ request.args.get('site_filter', '') }}">
+                <input type="hidden" name="dept_filter" value="{{ dept_filter }}">
+                <select name="grade_filter" class="form-select-box form-select" onchange="this.form.submit()">
+                  <option value="">All Grades</option>
+                  {% for grade in grades %}
+                  <option value="{{ grade }}" {% if request.args.get('grade_filter', '') == grade %}selected{% endif %}>
+                    {{ grade }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </form>
+            </div>
+            <div class="col mb-4">
+              <label class="filter-labels text-sm mb-0">Filter By Department</label>
+              <form method="get" class="d-flex">
+                <input type="hidden" name="search" value="{{ request.args.get('search', '') }}">
+                <input type="hidden" name="site_filter" value="{{ request.args.get('site_filter', '') }}">
+                <input type="hidden" name="grade_filter" value="{{ request.args.get('grade_filter', '') }}">
+                <select name="dept_filter" class="form-select-box form-select" onchange="this.form.submit()">
+                  <option value="">All Departments</option>
+                  {% for dept in departments %}
+                  <option value="{{ dept }}" {% if dept_filter == dept %}selected{% endif %}>{{ dept }}</option>
+                  {% endfor %}
+                </select>
+              </form>
+            </div>
+          </div>
+        </div>
+        <!-- end search box -->
+
+        <div class="table-per-page-section mt-4">
+          <div class="row justify-content-between">
+            <div class="col-4">
+              <form method="get" class="d-flex">
+                <label for="per_page">Items per page: </label>
+                <select name="per_page" id="per_page" class="per-page-drop" onchange="this.form.submit()">
+                  <option value="10" {% if per_page == 10 %}selected{% endif %}>10</option>
+                  <option value="25" {% if per_page == 25 %}selected{% endif %}>25</option>
+                  <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
+                </select>
+              </form>
+            </div>
+            <div class="col-2 text-end"></div>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="table-responsive">
+          <table class="table align-items-center mb-0 table-striped">
+            <thead>
+              <tr>
+                <th class="text-uppercase text-xxs font-weight-bolder">Course</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Section ID</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Teacher</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Grade Level</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Department</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Site</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for course in courses %}
+              <tr class="table-highlight-row {{ 'text-muted' if course.status == 'Inactive' else '' }}">
+                <td>
+                  <div class="d-flex px-2 py-1">
+                    <div class="d-flex flex-column justify-content-center">
+                      <a href="{{ url_for('routes.course_details', course_id=course.id) }}"
+                         class="mb-0 text-sm fw-bold text-dark text-decoration-none course-link">{{ course.course_name }}</a>
+                    </div>
+                  </div>
+                </td>
+                <td class="text-center">
+                  <p class="text-xs font-weight-bold mb-0 text-uppercase">{{ course.section_id }}</p>
+                </td>
+                <td class="text-center">
+                  {% if course.teacher %}
+                  <a href="{{ url_for('routes.teacher_details', teacher_id=course.teacher.id) }}"
+                     class="text-secondary text-xs font-weight-bold text-capitalize text-decoration-none teacher-link">
+                    {{ course.teacher.last_name }}, {{ course.teacher.first_name }}
+                  </a>
+                  {% else %}
+                  <span class="text-secondary text-xs font-weight-bold">—</span>
+                  {% endif %}
+                </td>
+                <td class="text-center">
+                  <p class="text-xs font-weight-bold mb-0">{{ course.grade_level or '—' }}</p>
+                </td>
+                <td class="text-center">
+                  <span class="text-secondary text-xs font-weight-bold">{{ course.department or '—' }}</span>
+                </td>
+                <td class="text-center">
+                  <span class="text-secondary text-xs font-weight-bold">{{ course.site.site_name }}</span>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <nav aria-label="Page navigation">
+          <ul class="pagination">
+            {{ pagination.links }}
+          </ul>
+        </nav>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

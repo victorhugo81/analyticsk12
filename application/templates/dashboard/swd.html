@@ -1,0 +1,304 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="row">
+  <div class="col-12">
+    <div class="main-card-box card my-4">
+
+      <div class="card-header p-0 position-relative mt-n4 mx-3 z-index-2">
+        <div class="bg-gradient-main shadow-dark border-radius-lg pt-4 pb-3 d-flex justify-content-between align-items-center flex-wrap">
+          <h2 class="text-white ps-3 mb-0">
+            <i class="material-symbols-rounded opacity-5">accessibility_new</i> Students with Disabilities Dashboard
+          </h2>
+          <a href="{{ url_for('routes.index') }}" class="btn btn-sm btn-outline-light no-print me-3 mb-0">
+            <i class="material-symbols-rounded icon-inline">arrow_back</i> Back to Home
+          </a>
+        </div>
+      </div>
+
+      <div class="card-body px-4 pb-5 pt-3">
+
+        <!-- Toolbar -->
+        <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+          <p class="text-sm text-muted mb-0">Disability category analytics and subgroup breakdowns.</p>
+          <div class="d-flex gap-1 no-print">
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="printDashboard()">
+              <i class="material-symbols-rounded icon-inline">picture_as_pdf</i> Export
+            </button>
+          </div>
+        </div>
+
+        <!-- KPI Cards -->
+        <div class="demo-kpi-grid">
+          <a class="demo-kpi" href="{{ url_for('routes.students') }}?subgroup=swd">
+            <div class="demo-kpi-icon" style="background:#ccfbf1;">
+              <i class="material-symbols-rounded" style="color:#0f766e;">accessibility_new</i>
+            </div>
+            <div>
+              <div class="demo-kpi-label">Total SWD</div>
+              <div class="demo-kpi-value">{{ total_swd }}</div>
+              <div class="demo-kpi-sub">{{ ((total_swd / total_enrollment * 100) | round(1)) if total_enrollment else 0 }}% of enrollment</div>
+            </div>
+          </a>
+          <a class="demo-kpi" href="{{ url_for('routes.students') }}?subgroup=swd&subgroup=homeless">
+            <div class="demo-kpi-icon kpi-icon--info">
+              <i class="material-symbols-rounded">home</i>
+            </div>
+            <div>
+              <div class="demo-kpi-label">Homeless</div>
+              <div class="demo-kpi-value">{{ homeless_count }}</div>
+              <div class="demo-kpi-sub">{{ ((homeless_count / total * 100) | round(1)) if total else 0 }}% of SWD</div>
+            </div>
+          </a>
+          <a class="demo-kpi" href="{{ url_for('routes.students') }}?subgroup=swd&subgroup=frm">
+            <div class="demo-kpi-icon" style="background:#fef9c3;">
+              <i class="material-symbols-rounded" style="color:#a16207;">lunch_dining</i>
+            </div>
+            <div>
+              <div class="demo-kpi-label">Free / Reduced Meal</div>
+              <div class="demo-kpi-value">{{ frm_count }}</div>
+              <div class="demo-kpi-sub">{{ ((frm_count / total * 100) | round(1)) if total else 0 }}% of SWD</div>
+            </div>
+          </a>
+          <a class="demo-kpi" href="{{ url_for('routes.students') }}?subgroup=swd&subgroup=sed504">
+            <div class="demo-kpi-icon" style="background:#ede9fe;">
+              <i class="material-symbols-rounded" style="color:#6d28d9;">description</i>
+            </div>
+            <div>
+              <div class="demo-kpi-label">504 Plan</div>
+              <div class="demo-kpi-value">{{ sed504_count }}</div>
+              <div class="demo-kpi-sub">{{ ((sed504_count / total_swd * 100) | round(1)) if total_swd else 0 }}% of SWD</div>
+            </div>
+          </a>
+        </div>
+
+        <!-- Row 2: Special Programs Cards -->
+        <div class="row g-3 mb-3">
+          <div class="col-12 col-md-4">
+            <a class="demo-kpi" href="{{ url_for('routes.students') }}?subgroup=swd&subgroup=foster">
+              <div class="demo-kpi-icon" style="background:#fce7f3;">
+                <i class="material-symbols-rounded" style="color:#be185d;">child_care</i>
+              </div>
+              <div>
+                <div class="demo-kpi-label">Foster Youth</div>
+                <div class="demo-kpi-value">{{ foster_count }}</div>
+                <div class="demo-kpi-sub">{{ ((foster_count / total * 100) | round(1)) if total else 0 }}% of SWD</div>
+              </div>
+            </a>
+          </div>
+          <div class="col-12 col-md-4">
+            <a class="demo-kpi" href="{{ url_for('routes.students') }}?subgroup=swd&subgroup=migrant">
+              <div class="demo-kpi-icon" style="background:#ffedd5;">
+                <i class="material-symbols-rounded" style="color:#c2410c;">directions_walk</i>
+              </div>
+              <div>
+                <div class="demo-kpi-label">Migrant</div>
+                <div class="demo-kpi-value">{{ migrant_count }}</div>
+                <div class="demo-kpi-sub">{{ ((migrant_count / total * 100) | round(1)) if total else 0 }}% of SWD</div>
+              </div>
+            </a>
+          </div>
+          <div class="col-12 col-md-4">
+            <a class="demo-kpi" href="{{ url_for('routes.students') }}?subgroup=swd&subgroup=sed504">
+              <div class="demo-kpi-icon" style="background:#ccfbf1;">
+                <i class="material-symbols-rounded" style="color:#0f766e;">description</i>
+              </div>
+              <div>
+                <div class="demo-kpi-label">504 Plan</div>
+                <div class="demo-kpi-value">{{ sed504_count }}</div>
+                <div class="demo-kpi-sub">{{ ((sed504_count / total * 100) | round(1)) if total else 0 }}% of SWD</div>
+              </div>
+            </a>
+          </div>
+        </div>
+
+        <!-- Row: Disability Type + Grade -->
+        <div class="row g-3 mb-3">
+          <div class="col-12 col-lg-5">
+            <div class="chart-card">
+              <div class="chart-card-title">Students by Disability Type</div>
+              <div class="chart-wrap chart-wrap--bar">
+                <canvas id="chart-disability"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="col-12 col-lg-7">
+            <div class="chart-card">
+              <div class="chart-card-title">SWD by Grade</div>
+              <div class="chart-wrap chart-wrap--bar">
+                <canvas id="chart-grade"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row: Ethnicity + Site + Gender -->
+        <div class="row g-3 mb-3">
+          <div class="col-12 col-lg-4">
+            <div class="chart-card">
+              <div class="chart-card-title">SWD by Ethnicity</div>
+              <div class="table-responsive mt-2">
+                <table class="table table-sm table-hover align-middle mb-0">
+                  <thead>
+                    <tr>
+                      <th class="text-xs text-uppercase text-muted fw-bold">Ethnicity</th>
+                      <th class="text-xs text-uppercase text-muted fw-bold text-center">SWD</th>
+                      <th class="text-xs text-uppercase text-muted fw-bold text-center">%</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for code, label, count in ethnicity_table_data %}
+                    <tr>
+                      <td class="text-sm">
+                        <a href="{{ url_for('routes.students', subgroup='swd', ethnicity=code) }}" class="text-decoration-none text-dark">{{ label }}</a>
+                      </td>
+                      <td class="fw-bold text-center">{{ count }}</td>
+                      <td class="text-muted text-center">{{ ((count / total_swd * 100) | round(1)) if total_swd else 0 }}%</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div class="col-12 col-lg-4">
+            <div class="chart-card">
+              <div class="chart-card-title">SWD by Site</div>
+              <div class="table-responsive mt-2">
+                <table class="table table-sm table-hover align-middle mb-0">
+                  <thead>
+                    <tr>
+                      <th class="text-xs text-uppercase text-muted fw-bold">Site</th>
+                      <th class="text-xs text-uppercase text-muted fw-bold text-center">SWD</th>
+                      <th class="text-xs text-uppercase text-muted fw-bold text-center">%</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for site_id, site_name, count in site_table_data %}
+                    <tr>
+                      <td>
+                        <a href="{{ url_for('routes.students', site_filter=site_id, subgroup='swd') }}" class="text-decoration-none text-dark">{{ site_name }}</a>
+                      </td>
+                      <td class="fw-bold text-center">{{ count }}</td>
+                      <td class="text-muted text-center">{{ ((count / site_grand_total * 100) | round(1)) if site_grand_total else 0 }}%</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div class="col-12 col-lg-4">
+            <div class="chart-card">
+              <div class="chart-card-title">SWD by Gender</div>
+              <div class="chart-wrap chart-wrap--donut">
+                <canvas id="chart-gender"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/plugins/chartjs.min.js') }}"></script>
+<script>
+const _disability_labels = {{ disability_labels | tojson }};
+const _disability_counts = {{ disability_counts | tojson }};
+const _grade_labels      = {{ grade_labels | tojson }};
+const _grade_counts      = {{ grade_counts | tojson }};
+const _gender_labels     = {{ gender_labels | tojson }};
+const _gender_counts     = {{ gender_counts | tojson }};
+
+const PALETTE_4  = ['#1d4ed8','#be185d','#7c3aed','#6b7280'];
+const TEAL       = '#0f766e';
+const PRIMARY    = getComputedStyle(document.documentElement).getPropertyValue('--bs-main-color-primary').trim() || '#1d4ed8';
+
+const donutDefaults = {
+  type: 'doughnut',
+  options: {
+    responsive: true, maintainAspectRatio: false, cutout: '62%',
+    plugins: {
+      legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } },
+      tooltip: { callbacks: {
+        label: ctx => ` ${ctx.label}: ${ctx.parsed} (${((ctx.parsed / ctx.dataset.data.reduce((a,b)=>a+b,0))*100).toFixed(1)}%)`
+      }}
+    }
+  }
+};
+
+const barLabelPlugin = {
+  id: 'barLabels',
+  afterDatasetsDraw(chart) {
+    const ctx = chart.ctx;
+    const isHorizontal = chart.options.indexAxis === 'y';
+    chart.data.datasets.forEach((dataset, di) => {
+      chart.getDatasetMeta(di).data.forEach((bar, i) => {
+        const value = dataset.data[i];
+        if (!value) return;
+        ctx.save();
+        ctx.fillStyle = '#374151';
+        ctx.font = '600 11px sans-serif';
+        if (isHorizontal) {
+          ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+          ctx.fillText(value, bar.x + 5, bar.y);
+        } else {
+          ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+          ctx.fillText(value, bar.x, bar.y - 3);
+        }
+        ctx.restore();
+      });
+    });
+  }
+};
+
+new Chart(document.getElementById('chart-disability'), {
+  type: 'bar', plugins: [barLabelPlugin],
+  data: { labels: _disability_labels, datasets: [{ label: 'Students', data: _disability_counts, backgroundColor: TEAL, borderRadius: 5, borderSkipped: false }] },
+  options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, layout: { padding: { right: 36 } },
+    scales: { x: { beginAtZero: true, ticks: { precision: 0, color: '#737373', font: { size: 12 } }, grid: { color: '#e5e5e5' } }, y: { ticks: { color: '#737373', font: { size: 11 } }, grid: { display: false } } } }
+});
+
+new Chart(document.getElementById('chart-grade'), {
+  type: 'bar', plugins: [barLabelPlugin],
+  data: { labels: _grade_labels, datasets: [{ label: 'SWD', data: _grade_counts, backgroundColor: PRIMARY, borderRadius: 5, borderSkipped: false }] },
+  options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, layout: { padding: { top: 20 } },
+    scales: { y: { beginAtZero: true, ticks: { precision: 0, color: '#737373', font: { size: 12 } }, grid: { color: '#e5e5e5' } }, x: { ticks: { color: '#737373', font: { size: 12 } }, grid: { display: false } } } }
+});
+
+new Chart(document.getElementById('chart-gender'), {
+  ...donutDefaults,
+  data: { labels: _gender_labels, datasets: [{ data: _gender_counts, backgroundColor: PALETTE_4, borderWidth: 2, borderColor: '#fff' }] }
+});
+
+function printDashboard() {
+  const body = document.querySelector('.card-body');
+  const PRINT_CHART_H = '150px';
+  const swaps = [];
+  document.querySelectorAll('.chart-wrap canvas').forEach(canvas => {
+    const wrap = canvas.closest('.chart-wrap');
+    const img = document.createElement('img');
+    img.src = canvas.toDataURL('image/png');
+    img.style.cssText = 'width:100%;height:100%;object-fit:fill;display:block;';
+    canvas.insertAdjacentElement('afterend', img);
+    canvas.style.display = 'none';
+    if (wrap) { wrap._ph = wrap.style.height; wrap.style.height = PRINT_CHART_H; }
+    swaps.push({ canvas, img, wrap });
+  });
+  body.style.zoom = '1'; void body.offsetHeight;
+  const PAGE_W = Math.round((297 - 0.8) / 25.4 * 96);
+  const PAGE_H = Math.round((210 - 0.8) / 25.4 * 96);
+  body.style.zoom = Math.min(PAGE_W / body.scrollWidth, PAGE_H / body.scrollHeight, 1).toFixed(4);
+  setTimeout(() => {
+    window.print();
+    setTimeout(() => {
+      body.style.zoom = '';
+      swaps.forEach(({ canvas, img, wrap }) => { canvas.style.display = ''; img.remove(); if (wrap) wrap.style.height = wrap._ph; });
+    }, 500);
+  }, 250);
+}
+</script>
+
+{% endblock %}

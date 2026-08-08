@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="row">
+  <div class="col-12">
+    <div class="main-card-box card my-4">
+      <div class="card-header p-0 position-relative mt-n4 mx-3 z-index-2">
+        <div class="bg-gradient-main custom-title-card">
+          <h2 class="text-white text-capitalize ps-3">
+            <i class="material-symbols-rounded opacity-5">grade</i> {{ current_page_name }}
+          </h2>
+        </div>
+      </div>
+      <div class="card-body px-4 pb-4">
+        <br>
+
+        <!-- Search & Filters -->
+        <div class="search-content-box mb-4">
+          <div class="row justify-content-between">
+            <div class="col">
+              <form method="get" class="d-flex">
+                <input type="hidden" name="term"         value="{{ term_filter }}">
+                <input type="hidden" name="grade_letter" value="{{ grade_filter }}">
+                <input type="hidden" name="course"       value="{{ course_filter }}">
+                <input type="text" name="search" class="search-field-box form-control"
+                       placeholder="Search by name or student ID"
+                       value="{{ request.args.get('search', '') }}">
+                <button type="submit" class="btn bg-gradient-main search-button-box shadow-dark">Search</button>
+                <a href="{{ url_for('routes.student_grades') }}" class="btn reset-button-box shadow-dark">Reset</a>
+              </form>
+            </div>
+          </div>
+
+          <div class="row mt-3 g-2">
+            <div class="col-md-4">
+              <label class="filter-labels text-sm mb-0">Filter By Site</label>
+              <select class="form-select-box form-select"
+                      onchange="window.location='/set_site_filter?sf='+encodeURIComponent(this.value)+'&next='+encodeURIComponent(window.location.pathname)">
+                <option value="">All Sites</option>
+                {% for site in global_sites %}
+                <option value="{{ site.id }}" {% if active_site_filter == site.id|string %}selected{% endif %}>
+                  {{ site.site_name }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-2">
+              <label class="filter-labels text-sm mb-0">Term</label>
+              <select name="term" class="form-select-box form-select"
+                      onchange="applyFilter('term', this.value)">
+                <option value="">All Terms</option>
+                {% for t in terms %}
+                <option value="{{ t }}" {% if term_filter == t %}selected{% endif %}>{{ t }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-2">
+              <label class="filter-labels text-sm mb-0">Grade</label>
+              <select name="grade_letter" class="form-select-box form-select"
+                      onchange="applyFilter('grade_letter', this.value)">
+                <option value="">All Grades</option>
+                {% for g in ['A','B','C','D','F'] %}
+                <option value="{{ g }}" {% if grade_filter == g %}selected{% endif %}>{{ g }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="filter-labels text-sm mb-0">Course</label>
+              <select name="course" class="form-select-box form-select"
+                      onchange="applyFilter('course', this.value)">
+                <option value="">All Courses</option>
+                {% for c in courses %}
+                <option value="{{ c }}" {% if course_filter == c %}selected{% endif %}>{{ c }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Count + per-page -->
+        <div class="table-per-page-section mt-2">
+          <div class="row justify-content-between align-items-center">
+            <div class="col-4">
+              <form method="get" class="d-flex align-items-center gap-2">
+                <input type="hidden" name="search"       value="{{ request.args.get('search','') }}">
+                <input type="hidden" name="term"         value="{{ term_filter }}">
+                <input type="hidden" name="grade_letter" value="{{ grade_filter }}">
+                <input type="hidden" name="course"       value="{{ course_filter }}">
+                <label for="per_page" class="text-sm text-muted mb-0">Rows:</label>
+                <select name="per_page" id="per_page" class="per-page-drop" onchange="this.form.submit()">
+                  <option value="25"  {% if per_page == 25  %}selected{% endif %}>25</option>
+                  <option value="50"  {% if per_page == 50  %}selected{% endif %}>50</option>
+                  <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
+                </select>
+              </form>
+            </div>
+            <div class="col-auto text-muted text-sm">
+              {{ total }} record{{ 's' if total != 1 else '' }}
+            </div>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="table-responsive mt-3">
+          <table class="table align-items-center mb-0 table-striped">
+            <thead>
+              <tr>
+                <th class="text-uppercase text-xxs font-weight-bolder">Student</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">ID</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Grade</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Course</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Teacher ID</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Term</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Letter</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Type</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Cr Att</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Cr Comp</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for grade, student in results %}
+              <tr>
+                <td>
+                  <a href="{{ url_for('routes.student_details', student_id=student.id) }}"
+                     class="text-dark fw-bold text-sm">
+                    {{ student.last_name }}, {{ student.first_name }}
+                  </a>
+                </td>
+                <td class="text-sm text-muted text-center">{{ student.student_id }}</td>
+                <td class="text-sm text-center">{{ student.grade }}</td>
+                <td class="text-sm fw-bold text-center">{{ grade.grades_coursenum }}</td>
+                <td class="text-sm text-muted text-center">{{ grade.grades_teacherid }}</td>
+                <td class="text-sm text-center">{{ grade.grades_term }}</td>
+                <td class="text-center">
+                  {% set g = grade.grades_grade %}
+                  <span class="badge
+                    {%- if g == 'A' %} bg-success
+                    {%- elif g == 'B' %} bg-primary
+                    {%- elif g == 'C' %} bg-warning text-dark
+                    {%- elif g == 'D' %} bg-orange text-white
+                    {%- else %} bg-danger
+                    {%- endif %}" style="font-size:0.72rem;min-width:1.8rem;">{{ g }}</span>
+                </td>
+                <td class="text-sm text-muted text-center">{{ grade.grades_type }}</td>
+                <td class="text-center text-sm">{{ grade.grades_credatt if grade.grades_credatt else '—' }}</td>
+                <td class="text-center text-sm">{{ grade.grades_credcomp if grade.grades_credcomp else '—' }}</td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="10" class="text-center text-muted py-4">No grade records found.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="mt-3">
+          {{ pagination.links }}
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function applyFilter(param, value) {
+  const url = new URL(window.location.href);
+  url.searchParams.set(param, value);
+  url.searchParams.delete('page');
+  window.location = url.toString();
+}
+</script>
+
+{% endblock %}

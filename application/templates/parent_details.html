@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="row">
+  <div class="col-12">
+    <div class="main-card-box card my-4">
+      <div class="card-header p-0 position-relative mt-n4 mx-3 z-index-2">
+        <div class="bg-gradient-main shadow-dark border-radius-lg pt-4 pb-3">
+          <h2 class="text-white text-capitalize ps-3">
+            <i class="material-symbols-rounded opacity-5">family_restroom</i>
+            {{ parent.last_name }}, {{ parent.first_name }} {{ parent.middle_name or '' }}
+          </h2>
+        </div>
+      </div>
+      <div class="card-body px-4 pb-4">
+
+        <!-- Personal Information -->
+        <p class="text-uppercase text-sm text-muted fw-bold mb-2 mt-3">Personal Information</p>
+        <hr class="mt-0 mb-4">
+        <div class="row g-4 mb-4">
+          <div class="col-12 col-sm-6 col-lg-3">
+            <p class="text-xs text-muted mb-0">First Name</p>
+            <p class="text-sm font-weight-bold text-capitalize mb-0">{{ parent.first_name }}</p>
+          </div>
+          <div class="col-12 col-sm-6 col-lg-3">
+            <p class="text-xs text-muted mb-0">Middle Name</p>
+            <p class="text-sm font-weight-bold text-capitalize mb-0">{{ parent.middle_name or '—' }}</p>
+          </div>
+          <div class="col-12 col-sm-6 col-lg-3">
+            <p class="text-xs text-muted mb-0">Last Name</p>
+            <p class="text-sm font-weight-bold text-capitalize mb-0">{{ parent.last_name }}</p>
+          </div>
+          <div class="col-12 col-sm-6 col-lg-3">
+            <p class="text-xs text-muted mb-0">Relationship</p>
+            <p class="text-sm font-weight-bold mb-0">{{ parent.relationship }}</p>
+          </div>
+          <div class="col-12 col-sm-6 col-lg-3">
+            <p class="text-xs text-muted mb-0">Email</p>
+            <p class="text-sm font-weight-bold mb-0">{{ parent.email or '—' }}</p>
+          </div>
+          <div class="col-12 col-sm-6 col-lg-3">
+            <p class="text-xs text-muted mb-0">Phone</p>
+            <p class="text-sm font-weight-bold mb-0">{{ parent.phone or '—' }}</p>
+          </div>
+          <div class="col-12 col-sm-6 col-lg-3">
+            <p class="text-xs text-muted mb-0">Status</p>
+            <span class="badge badge-sm {{ 'bg-success' if parent.status == 'Active' else 'bg-secondary' }}">
+              {{ parent.status }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Linked Students -->
+        <p class="text-uppercase text-sm text-muted fw-bold mb-2 mt-5">
+          Linked Students
+          <span class="badge bg-secondary ms-1">{{ parent.students | length }}</span>
+        </p>
+        <hr class="mt-0 mb-3">
+        {% if parent.students %}
+        <div class="table-responsive">
+          <table class="table align-items-center mb-0 table-striped">
+            <thead>
+              <tr>
+                <th class="text-uppercase text-xxs font-weight-bolder">Name</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Student ID</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Grade</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Site</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for student in parent.students %}
+              <tr class="table-highlight-row">
+                <td>
+                  <a href="{{ url_for('routes.student_details', student_id=student.id) }}"
+                     class="text-sm font-weight-bold text-dark text-capitalize">
+                    {{ student.last_name }}, {{ student.first_name }}
+                  </a>
+                </td>
+                <td class="text-center"><p class="text-xs font-weight-bold mb-0">{{ student.student_id }}</p></td>
+                <td class="text-center"><p class="text-xs font-weight-bold mb-0">{{ student.grade }}</p></td>
+                <td class="text-center"><span class="text-secondary text-xs font-weight-bold">{{ student.site.site_name }}</span></td>
+                <td class="text-center">
+                  <span class="badge badge-sm {{ 'bg-success' if student.status == 'Active' else 'bg-secondary' }}">
+                    {{ student.status }}
+                  </span>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p class="text-sm text-muted">No students linked.</p>
+        {% endif %}
+
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

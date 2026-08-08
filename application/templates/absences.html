@@ -1,0 +1,416 @@
+{% extends 'base.html' %}
+{% block content %}
+
+{# ── Reusable filter panel; `pfx` keeps collapse IDs unique per tab ── #}
+{% macro filter_panel(pfx, show_standing=False) %}
+{% set demo_active = subgroups or english_status or gender_filters %}
+<div class="mb-3 p-3" style="border:1px solid var(--color-border,#dee2e6);border-radius:8px;">
+
+  <!-- Site + Grade -->
+  <div class="row g-2 mb-2">
+    <div class="col-12 col-md-6">
+      <label class="filter-labels text-sm mb-0">Filter By Site</label>
+      <select class="form-select-box form-select"
+              onchange="window.location='/set_site_filter?sf='+encodeURIComponent(this.value)">
+        <option value="">All Sites</option>
+        {% for site in global_sites %}
+        <option value="{{ site.id }}" {% if active_site_filter == site.id|string %}selected{% endif %}>
+          {{ site.site_name }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-12 col-md-6">
+      <label class="filter-labels text-sm mb-0">Filter By Grade</label>
+      <form method="get" class="d-flex">
+        <input type="hidden" name="search" value="{{ request.args.get('search', '') }}">
+        <input type="hidden" name="tab"    value="{{ request.args.get('tab', 'students') }}">
+        {% for t in abs_types %}<input type="hidden" name="abs_type" value="{{ t }}">{% endfor %}
+        {% for sg in subgroups %}<input type="hidden" name="subgroup" value="{{ sg }}">{% endfor %}
+        {% for es in english_status %}<input type="hidden" name="english_status" value="{{ es }}">{% endfor %}
+        {% for gf in gender_filters %}<input type="hidden" name="gender" value="{{ gf }}">{% endfor %}
+        <select name="grade_filter" class="form-select-box form-select" onchange="this.form.submit()">
+          <option value="">All Grades</option>
+          {% for grade in grades %}
+          <option value="{{ grade }}" {% if grade_filter == grade %}selected{% endif %}>{{ grade }}</option>
+          {% endfor %}
+        </select>
+      </form>
+    </div>
+  </div>
+
+  <!-- Absence Type + Demographics -->
+  <div class="row g-2">
+
+    {% if show_standing %}
+    <div class="col-12 col-lg-6">
+      {% set _qs = request.query_string.decode()
+                    .replace('&stu_status=chronic','').replace('stu_status=chronic','')
+                    .replace('&stu_status=danger','').replace('stu_status=danger','')
+                    .replace('&stu_status=good','').replace('stu_status=good','')
+                    .replace('&stu_status=severe','').replace('stu_status=severe','')
+                    .replace('&stu_page='+request.args.get('stu_page','1'),'') %}
+      <div class="d-flex align-items-center justify-content-between px-2 py-2 mb-1 rounded"
+           style="cursor:pointer;background:#f8f9fa;border:1px solid var(--color-border,#dee2e6);"
+           data-bs-toggle="collapse" data-bs-target="#{{ pfx }}StandingFilters"
+           role="button" aria-expanded="{{ 'true' if stu_status else 'false' }}">
+        <div class="d-flex align-items-center gap-2">
+          <i class="material-symbols-rounded text-muted" style="font-size:1.05rem;vertical-align:middle;">event_busy</i>
+          <span class="text-sm fw-bold text-dark">Absenteeism Standing</span>
+          {% if stu_status %}
+          <span class="badge bg-gradient-main">Active</span>
+          {% endif %}
+        </div>
+        <i class="material-symbols-rounded text-muted" style="font-size:1.1rem;">
+          {%- if stu_status %}expand_less{% else %}expand_more{% endif -%}
+        </i>
+      </div>
+      <div class="collapse {% if stu_status %}show{% endif %}" id="{{ pfx }}StandingFilters">
+        <div class="bg-white rounded-bottom p-3" style="border:1px solid var(--color-border,#dee2e6);border-top:none;">
+          <div class="d-flex flex-wrap gap-2">
+            <a href="?{{ _qs }}&tab=students"
+               class="btn btn-sm rounded-pill {% if not stu_status %}btn-secondary{% else %}btn-outline-secondary{% endif %}">All</a>
+            <a href="?{{ _qs }}&tab=students&stu_status=chronic"
+               class="btn btn-sm rounded-pill {% if stu_status == 'chronic' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">
+              Chronic Absenteeism <span class="ms-1 opacity-75">≥10%</span>
+            </a>
+            <a href="?{{ _qs }}&tab=students&stu_status=severe"
+               class="btn btn-sm rounded-pill {% if stu_status == 'severe' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">
+              Severe Chronic <span class="ms-1 opacity-75">≥25%</span>
+            </a>
+            <a href="?{{ _qs }}&tab=students&stu_status=danger"
+               class="btn btn-sm rounded-pill {% if stu_status == 'danger' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">
+              In Danger <span class="ms-1 opacity-75">&gt;7%</span>
+            </a>
+            <a href="?{{ _qs }}&tab=students&stu_status=good"
+               class="btn btn-sm rounded-pill {% if stu_status == 'good' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">
+              Good Standing <span class="ms-1 opacity-75">≤7%</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="col-12 col-lg-6">
+      <div class="d-flex align-items-center justify-content-between px-2 py-2 mb-1 rounded"
+           style="cursor:pointer;background:#f8f9fa;border:1px solid var(--color-border,#dee2e6);"
+           data-bs-toggle="collapse" data-bs-target="#{{ pfx }}AbsFilters"
+           role="button" aria-expanded="{{ 'true' if abs_types else 'false' }}">
+        <div class="d-flex align-items-center gap-2">
+          <i class="material-symbols-rounded text-muted" style="font-size:1.05rem;vertical-align:middle;">event_busy</i>
+          <span class="text-sm fw-bold text-dark">Absence Type</span>
+          {% if abs_types %}
+          <span class="badge bg-gradient-main">{{ abs_types | length }} selected</span>
+          {% endif %}
+        </div>
+        <i class="material-symbols-rounded text-muted" style="font-size:1.1rem;">
+          {%- if abs_types %}expand_less{% else %}expand_more{% endif -%}
+        </i>
+      </div>
+      <div class="collapse {% if abs_types %}show{% endif %}" id="{{ pfx }}AbsFilters">
+        <div class="bg-white rounded-bottom p-3" style="border:1px solid var(--color-border,#dee2e6);border-top:none;">
+          <div class="d-flex flex-wrap gap-2">
+            {% for val, label in [('UA','Unexcused Absence'),('EA','Excused Absence'),('UT','Unexcused Tardy'),('ET','Excused Tardy'),('MED','Medical Absence'),('ISS','In-School Suspension'),('SS','Suspension')] %}
+            <input type="checkbox" class="btn-check" id="{{ pfx }}_abs_{{ val }}" autocomplete="off"
+                   {% if val in abs_types %}checked{% endif %}
+                   onchange="applyMultiFilter('abs_type','{{ val }}',this.checked)">
+            <label class="btn btn-sm btn-outline-secondary rounded-pill" for="{{ pfx }}_abs_{{ val }}">{{ label }}</label>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="col-12 col-lg-6">
+      <div class="d-flex align-items-center justify-content-between px-2 py-2 mb-1 rounded"
+           style="cursor:pointer;background:#f8f9fa;border:1px solid var(--color-border,#dee2e6);"
+           data-bs-toggle="collapse" data-bs-target="#{{ pfx }}DemoFilters"
+           role="button" aria-expanded="{{ 'true' if demo_active else 'false' }}">
+        <div class="d-flex align-items-center gap-2">
+          <i class="material-symbols-rounded text-muted" style="font-size:1.05rem;vertical-align:middle;">tune</i>
+          <span class="text-sm fw-bold text-dark">Demographic Filters</span>
+          {% if demo_active %}
+          <span class="badge bg-gradient-main">Active</span>
+          {% endif %}
+        </div>
+        <i class="material-symbols-rounded text-muted" style="font-size:1.1rem;">
+          {%- if demo_active %}expand_less{% else %}expand_more{% endif -%}
+        </i>
+      </div>
+      <div class="collapse {% if demo_active %}show{% endif %}" id="{{ pfx }}DemoFilters">
+        <div class="bg-white rounded-bottom p-3" style="border:1px solid var(--color-border,#dee2e6);border-top:none;">
+          <p class="text-xs text-uppercase text-muted fw-bold mb-2">Special Programs</p>
+          <div class="d-flex flex-wrap gap-2 mb-3">
+            {% for val, label in [('homeless','Homeless'),('frm','Free / Reduced Meal'),('swd','Students w/ Disability'),('foster','Foster Youth'),('migrant','Migrant'),('sed504','504 Plan')] %}
+            <input type="checkbox" class="btn-check" id="{{ pfx }}_sg_{{ val }}" autocomplete="off"
+                   {% if val in subgroups %}checked{% endif %}
+                   onchange="applyMultiFilter('subgroup','{{ val }}',this.checked)">
+            <label class="btn btn-sm btn-outline-secondary rounded-pill" for="{{ pfx }}_sg_{{ val }}">{{ label }}</label>
+            {% endfor %}
+          </div>
+          <p class="text-xs text-uppercase text-muted fw-bold mb-2">English Status</p>
+          <div class="d-flex flex-wrap gap-2 mb-3">
+            {% for val, label in [('EO','English Only'),('EL','English Learner'),('RFEP','RFEP'),('IFEP','IFEP'),('TBD','TBD')] %}
+            <input type="checkbox" class="btn-check" id="{{ pfx }}_el_{{ val }}" autocomplete="off"
+                   {% if val in english_status %}checked{% endif %}
+                   onchange="applyMultiFilter('english_status','{{ val }}',this.checked)">
+            <label class="btn btn-sm btn-outline-secondary rounded-pill" for="{{ pfx }}_el_{{ val }}">{{ label }}</label>
+            {% endfor %}
+          </div>
+          <p class="text-xs text-uppercase text-muted fw-bold mb-2">Gender</p>
+          <div class="d-flex flex-wrap gap-2">
+            {% for val, label in [('M','Male'),('F','Female'),('X','Non-Binary'),('U','Unknown')] %}
+            <input type="checkbox" class="btn-check" id="{{ pfx }}_gd_{{ val }}" autocomplete="off"
+                   {% if val in gender_filters %}checked{% endif %}
+                   onchange="applyMultiFilter('gender','{{ val }}',this.checked)">
+            <label class="btn btn-sm btn-outline-secondary rounded-pill" for="{{ pfx }}_gd_{{ val }}">{{ label }}</label>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  {% if abs_types or grade_filter or demo_active or (show_standing and stu_status) %}
+  <div class="mt-2">
+    <a href="{{ url_for('routes.absences') }}?tab={{ request.args.get('tab', 'students') }}"
+       class="btn btn-sm btn-outline-danger">
+      <i class="material-symbols-rounded" style="font-size:0.9rem;vertical-align:middle;pointer-events:none;">close</i>
+      Clear Filters
+    </a>
+  </div>
+  {% endif %}
+
+</div>
+{% endmacro %}
+
+
+<div class="row">
+  <div class="col-12">
+    <div class="main-card-box card my-4">
+      <div class="card-header p-0 position-relative mt-n4 mx-3 z-index-2">
+        <div class="bg-gradient-main custom-title-card">
+          <h2 class="text-white text-capitalize ps-3">
+            <i class="material-symbols-rounded opacity-5">event_busy</i> {{ current_page_name }}
+          </h2>
+        </div>
+      </div>
+      <div class="card-body px-4 pb-4">
+        <br>
+
+        <!-- Search — stays outside tabs -->
+        <div class="mb-3">
+          <form method="get" class="d-flex">
+            <input type="hidden" name="grade_filter" value="{{ grade_filter }}">
+            <input type="hidden" name="tab"          value="{{ request.args.get('tab', 'students') }}">
+            {% for t in abs_types %}<input type="hidden" name="abs_type" value="{{ t }}">{% endfor %}
+            {% for sg in subgroups %}<input type="hidden" name="subgroup" value="{{ sg }}">{% endfor %}
+            {% for es in english_status %}<input type="hidden" name="english_status" value="{{ es }}">{% endfor %}
+            {% for gf in gender_filters %}<input type="hidden" name="gender" value="{{ gf }}">{% endfor %}
+            <input type="text" name="search" class="search-field-box form-control"
+                   placeholder="Search by SSID, student name or description"
+                   value="{{ request.args.get('search', '') }}">
+            <button type="submit" class="btn bg-gradient-main search-button-box shadow-dark">Search</button>
+            <a href="{{ url_for('routes.absences') }}?tab={{ request.args.get('tab', 'students') }}"
+               type="button" class="btn reset-button-box shadow-dark">Reset</a>
+          </form>
+        </div>
+
+        <!-- Tabs -->
+        {% set active_tab = request.args.get('tab', 'students') %}
+        <ul class="nav nav-tabs mb-3" id="absencesTabs" role="tablist">
+          <li class="nav-item" role="presentation">
+            <a class="nav-link {% if active_tab == 'students' %}active{% endif %}"
+               href="?{{ request.query_string.decode().replace('&tab=records','').replace('tab=records','') }}&tab=students">
+              Student Absence Totals
+            </a>
+          </li>
+          <li class="nav-item" role="presentation">
+            <a class="nav-link {% if active_tab != 'students' %}active{% endif %}"
+               href="?{{ request.query_string.decode().replace('&tab=students','').replace('tab=students','') }}&tab=records">
+              Absence Records
+            </a>
+          </li>
+        </ul>
+
+        <!-- Tab: Student Absence Totals -->
+        <div {% if active_tab != 'students' %}style="display:none;"{% endif %}>
+
+          {{ filter_panel('stu', show_standing=True) }}
+
+          <div class="table-per-page-section mt-2">
+            <div class="row justify-content-between align-items-center">
+              <div class="col-4">
+                <form method="get" class="d-flex">
+                  <input type="hidden" name="tab" value="students">
+                  <label for="stu_per_page">Items per page: </label>
+                  <select name="stu_per_page" id="stu_per_page" class="per-page-drop" onchange="this.form.submit()">
+                    <option value="10"  {% if stu_per_page == 10  %}selected{% endif %}>10</option>
+                    <option value="25"  {% if stu_per_page == 25  %}selected{% endif %}>25</option>
+                    <option value="50"  {% if stu_per_page == 50  %}selected{% endif %}>50</option>
+                    <option value="100" {% if stu_per_page == 100 %}selected{% endif %}>100</option>
+                  </select>
+                </form>
+              </div>
+              <div class="col text-center d-flex align-items-center justify-content-center">
+                <span class="text-sm text-muted">
+                  <span class="fw-bold text-dark">{{ stu_total }}</span>
+                  student{{ 's' if stu_total != 1 else '' }} found
+                </span>
+              </div>
+              <div class="col-2"></div>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table align-items-center mb-0 table-striped">
+              <thead>
+                <tr>
+                  <th class="text-uppercase text-xxs font-weight-bolder">Student</th>
+                  <th class="text-uppercase text-xxs font-weight-bolder text-center">Student ID</th>
+                  <th class="text-uppercase text-xxs font-weight-bolder text-center">Grade</th>
+                  <th class="text-uppercase text-xxs font-weight-bolder text-center">Site</th>
+                  <th class="text-uppercase text-xxs font-weight-bolder text-center">Enrolled Days</th>
+                  <th class="text-uppercase text-xxs font-weight-bolder text-center">Total Absences</th>
+                  <th class="text-uppercase text-xxs font-weight-bolder text-center">Absence %</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in student_totals %}
+                <tr class="table-highlight-row {% if row.student_id %}clickable-row{% endif %}"
+                    {% if row.student_id %}data-href="{{ url_for('routes.student_details', student_id=row.student_id) }}" style="cursor:pointer;"{% endif %}>
+                  <td><p class="mb-0 fw-bold text-dark" style="color:#000 !important;">{{ row.name }}</p></td>
+                  <td class="text-center"><p class="text-xs font-weight-bold mb-0">{{ row.stu_num or '—' }}</p></td>
+                  <td class="text-center"><p class="text-xs font-weight-bold mb-0">{{ row.grade }}</p></td>
+                  <td class="text-center"><p class="text-xs font-weight-bold mb-0">{{ row.site }}</p></td>
+                  <td class="text-center"><p class="text-xs font-weight-bold mb-0">{{ row.enrolled_days }}</p></td>
+                  <td class="text-center">
+                    <span class="badge {% if row.total >= 18 %}bg-danger{% elif row.total >= 10 %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                      {{ row.total }}
+                    </span>
+                  </td>
+                  <td class="text-center">
+                    {% if row.abs_pct is not none %}
+                    <span class="badge {% if row.abs_pct >= 10 %}bg-danger{% elif row.abs_pct > 7 %}bg-warning text-dark{% else %}bg-success{% endif %}">
+                      {{ row.abs_pct }}%
+                    </span>
+                    {% else %}
+                    <span class="text-muted text-xs">—</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% else %}
+                <tr>
+                  <td colspan="7" class="text-center text-sm text-muted py-4">No absence records found.</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          <nav aria-label="Student page navigation">
+            <ul class="pagination">{{ stu_pagination.links }}</ul>
+          </nav>
+
+        </div>
+        <!-- End Tab: Student Absence Totals -->
+
+        <!-- Tab: Absence Records -->
+        <div {% if active_tab == 'students' %}style="display:none;"{% endif %}>
+
+          {{ filter_panel('rec') }}
+
+          <div class="table-per-page-section mt-2">
+            <div class="row justify-content-between align-items-center">
+              <div class="col-4">
+                <form method="get" class="d-flex">
+                  <input type="hidden" name="tab" value="records">
+                  <label for="per_page">Items per page: </label>
+                  <select name="per_page" id="per_page" class="per-page-drop" onchange="this.form.submit()">
+                    <option value="10"  {% if per_page == 10  %}selected{% endif %}>10</option>
+                    <option value="25"  {% if per_page == 25  %}selected{% endif %}>25</option>
+                    <option value="50"  {% if per_page == 50  %}selected{% endif %}>50</option>
+                    <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
+                  </select>
+                </form>
+              </div>
+              <div class="col text-center d-flex align-items-center justify-content-center">
+                <span class="text-sm text-muted">
+                  <span class="fw-bold text-dark">{{ total }}</span>
+                  absence{{ 's' if total != 1 else '' }} found
+                </span>
+              </div>
+              <div class="col-2"></div>
+            </div>
+          </div>
+
+          <div class="table-responsive mt-3">
+            <table class="table align-items-center mb-0 table-striped">
+              <thead>
+                <tr>
+                  <th class="text-uppercase text-xxs font-weight-bolder">Student</th>
+                  <th class="text-uppercase text-xxs font-weight-bolder text-center">Student ID</th>
+                  <th class="text-uppercase text-xxs font-weight-bolder text-center">Grade</th>
+                  <th class="text-uppercase text-xxs font-weight-bolder text-center">Site</th>
+                  <th class="text-uppercase text-xxs font-weight-bolder text-center">Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for absence in absences %}
+                {% set stu_id = ssid_ids.get(absence.ssid) %}
+                <tr class="table-highlight-row {% if stu_id %}clickable-row{% endif %}"
+                    {% if stu_id %}data-href="{{ url_for('routes.student_details', student_id=stu_id) }}" style="cursor:pointer;"{% endif %}>
+                  <td>
+                    <p class="mb-0 text-capitalize fw-bold text-dark" style="color:#000 !important;">
+                      {{ ssid_names.get(absence.ssid, '—') }}
+                    </p>
+                  </td>
+                  <td class="text-center"><p class="text-xs font-weight-bold mb-0">{{ ssid_stu_ids.get(absence.ssid, '—') }}</p></td>
+                  <td class="text-center"><p class="text-xs font-weight-bold mb-0">{{ absence.grade or '—' }}</p></td>
+                  <td class="text-center"><p class="text-xs font-weight-bold mb-0">{{ site_id_names.get(absence.site_id, '—') }}</p></td>
+                  <td class="text-center"><p class="text-xs font-weight-bold mb-0">{{ absence.abs_date.strftime('%m/%d/%Y') if absence.abs_date else '—' }}</p></td>
+                </tr>
+                {% else %}
+                <tr>
+                  <td colspan="7" class="text-center text-sm text-muted py-4">No absence records found.</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          <nav aria-label="Page navigation">
+            <ul class="pagination">{{ pagination.links }}</ul>
+          </nav>
+
+        </div>
+        <!-- End Tab: Absence Records -->
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.querySelectorAll('tr.clickable-row').forEach(function(row) {
+  row.addEventListener('click', function() {
+    window.location = row.dataset.href;
+  });
+});
+
+function applyMultiFilter(param, value, checked) {
+  const url = new URL(window.location.href);
+  const params = new URLSearchParams(url.search);
+  params.delete('page');
+  let current = params.getAll(param).filter(v => v !== value);
+  if (checked) current.push(value);
+  params.delete(param);
+  current.forEach(v => params.append(param, v));
+  url.search = params.toString();
+  window.location.href = url.toString();
+}
+</script>
+
+{% endblock %}

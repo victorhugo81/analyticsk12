@@ -1,0 +1,569 @@
+
+
+<!-- Navbar -->
+<aside class="sidenav navbar navbar-vertical navbar-expand-xs border-radius-lg fixed-start ms-2  bg-white my-2" id="sidenav-main">
+
+    <div class="sidenav-header">
+      <i class="fas fa-times p-3 cursor-pointer text-dark opacity-5 position-absolute end-0 top-0 d-none d-xl-none" aria-hidden="true" id="iconSidenav"></i>
+      <a class="navbar-brand px-4 py-3 m-0" href="{{ url_for('routes.index') }}" >
+        <img src="{{ url_for('static', filename='img/logo.png') }}" class="navbar-brand-img" alt="Analyticsk12">
+      </a>
+    </div>
+    <hr class="horizontal dark mt-0 mb-2">
+    <div class="collapse navbar-collapse  w-auto " id="sidenav-collapse-main">
+      <ul class="navbar-nav">
+        <li class="nav-item">
+          <a id="nav-home-link" class="{% if request.endpoint in ['routes.index'] %}nav-link active{% else %}nav-link{% endif %}" href="{{ url_for('routes.index') }}">
+            <i class="material-symbols-rounded opacity-5">house</i>
+            <span class="nav-link-text ms-1">Home</span>
+          </a>
+        </li>
+
+
+        <!-- Dashboards -->
+        <li class="nav-item nav-cat-list">
+          <h6 class="ps-4 ms-2 text-uppercase text-xxs text-dark font-weight-bolder">Dashboards</h6>
+        </li>
+        <li class="nav-item">
+          <a class="{% if request.endpoint in ['routes.demographics'] %}nav-link active{% else %}nav-link{% endif %}" href="{{ url_for('routes.demographics') }}">
+            <i class="material-symbols-rounded opacity-5">people</i>
+            <span class="nav-link-text ms-1">Demographics</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="{% if request.endpoint in ['routes.absenteeism'] %}nav-link active{% else %}nav-link{% endif %}" href="{{ url_for('routes.absenteeism') }}">
+            <i class="material-symbols-rounded opacity-5">event_available</i>
+            <span class="nav-link-text ms-1">Absenteeism</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="{% if request.endpoint in ['routes.discipline_dashboard'] %}nav-link active{% else %}nav-link{% endif %}" href="{{ url_for('routes.discipline_dashboard') }}">
+            <i class="material-symbols-rounded opacity-5">gavel</i>
+            <span class="nav-link-text ms-1">Discipline</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="{% if request.endpoint in ['routes.swd_dashboard'] %}nav-link active{% else %}nav-link{% endif %}" href="{{ url_for('routes.swd_dashboard') }}">
+            <i class="material-symbols-rounded opacity-5">accessibility</i>
+            <span class="nav-link-text ms-1">SWD</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="{% if request.endpoint in ['routes.el_progress_dashboard'] %}nav-link active{% else %}nav-link{% endif %}" href="{{ url_for('routes.el_progress_dashboard') }}">
+            <i class="material-symbols-rounded opacity-5">translate</i>
+            <span class="nav-link-text ms-1">EL Progress</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="{% if request.endpoint in ['routes.enrollment', 'routes.enrollment_k6', 'routes.enrollment_ms', 'routes.enrollment_hs'] %}nav-link active{% else %}nav-link{% endif %}" href="{{ url_for('routes.enrollment') }}">
+            <i class="material-symbols-rounded opacity-5">school</i>
+            <span class="nav-link-text ms-1">Enrollment</span>
+          </a>
+        </li>
+        <li class="nav-item ps-3">
+          <a class="{% if request.endpoint == 'routes.enrollment_k6' %}nav-link active{% else %}nav-link{% endif %} py-1"
+             href="{{ url_for('routes.enrollment_k6') }}" style="font-size:0.8rem;">
+            <i class="material-symbols-rounded opacity-5" style="font-size:0.9rem;">subdirectory_arrow_right</i>
+            <span class="nav-link-text ms-1">K–6</span>
+          </a>
+        </li>
+        <li class="nav-item ps-3">
+          <a class="{% if request.endpoint == 'routes.enrollment_ms' %}nav-link active{% else %}nav-link{% endif %} py-1"
+             href="{{ url_for('routes.enrollment_ms') }}" style="font-size:0.8rem;">
+            <i class="material-symbols-rounded opacity-5" style="font-size:0.9rem;">subdirectory_arrow_right</i>
+            <span class="nav-link-text ms-1">Middle School</span>
+          </a>
+        </li>
+        <li class="nav-item ps-3">
+          <a class="{% if request.endpoint == 'routes.enrollment_hs' %}nav-link active{% else %}nav-link{% endif %} py-1"
+             href="{{ url_for('routes.enrollment_hs') }}" style="font-size:0.8rem;">
+            <i class="material-symbols-rounded opacity-5" style="font-size:0.9rem;">subdirectory_arrow_right</i>
+            <span class="nav-link-text ms-1">High School</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="{% if request.endpoint in ['routes.attendance_rates'] %}nav-link active{% else %}nav-link{% endif %}" href="{{ url_for('routes.attendance_rates') }}">
+            <i class="material-symbols-rounded opacity-5">fact_check</i>
+            <span class="nav-link-text ms-1">Attendance Rates</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="{% if request.endpoint in ['routes.early_warning'] %}nav-link active{% else %}nav-link{% endif %}" href="{{ url_for('routes.early_warning') }}">
+            <i class="material-symbols-rounded opacity-5">crisis_alert</i>
+            <span class="nav-link-text ms-1">Early Warning</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="{% if request.endpoint in ['routes.calpads_compliance'] %}nav-link active{% else %}nav-link{% endif %}" href="{{ url_for('routes.calpads_compliance') }}">
+            <i class="material-symbols-rounded opacity-5">verified_user</i>
+            <span class="nav-link-text ms-1">CALPADS</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="{% if request.endpoint in ['routes.graduation_status'] %}nav-link active{% else %}nav-link{% endif %}" href="{{ url_for('routes.graduation_status') }}">
+            <i class="material-symbols-rounded opacity-5">school</i>
+            <span class="nav-link-text ms-1">Graduation</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="{% if request.endpoint in ['routes.equity_gaps_dashboard'] %}nav-link active{% else %}nav-link{% endif %}" href="{{ url_for('routes.equity_gaps_dashboard') }}">
+            <i class="material-symbols-rounded opacity-5">balance</i>
+            <span class="nav-link-text ms-1">Equity Gaps</span>
+          </a>
+        </li>
+        <!-- End Dashboards -->
+
+        <!-- Academic Items -->
+        <li class="nav-item nav-cat-list">
+          <h6 class="ps-4 ms-2 text-uppercase text-xxs text-dark font-weight-bolder">Academic</h6>
+        </li>
+        <li class="nav-item">
+          <a class="{% if request.endpoint in ['routes.absences'] %}nav-link active{% else %}nav-link{% endif %}" href="{{ url_for('routes.absences') }}">
+            <i class="material-symbols-rounded opacity-5">event_busy</i>
+            <span class="nav-link-text ms-1">Absences</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="{% if request.endpoint in ['routes.courses', 'routes.add_course', 'routes.course_details', 'routes.edit_course'] %}nav-link active{% else %}nav-link{% endif %}" href="{{ url_for('routes.courses') }}">
+            <i class="material-symbols-rounded opacity-5">menu_book</i>
+            <span class="nav-link-text ms-1">Courses</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="{% if request.endpoint in ['routes.incidents'] %}nav-link active{% else %}nav-link{% endif %}" href="{{ url_for('routes.incidents') }}">
+            <i class="material-symbols-rounded opacity-5">report</i>
+            <span class="nav-link-text ms-1">Incidents</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="{% if request.endpoint in ['routes.interventions', 'routes.add_intervention', 'routes.edit_intervention'] %}nav-link active{% else %}nav-link{% endif %}" href="{{ url_for('routes.interventions') }}">
+            <i class="material-symbols-rounded opacity-5">support</i>
+            <span class="nav-link-text ms-1">Interventions</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="{% if request.endpoint in ['routes.parents', 'routes.add_parent', 'routes.parent_details', 'routes.edit_parent'] %}nav-link active{% else %}nav-link{% endif %}" href="{{ url_for('routes.parents') }}">
+            <i class="material-symbols-rounded opacity-5">family_restroom</i>
+            <span class="nav-link-text ms-1">Parents</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="{% if request.endpoint in ['routes.students', 'routes.add_student', 'routes.student_details'] %}nav-link active{% else %}nav-link{% endif %}" href="{{ url_for('routes.students') }}">
+            <i class="material-symbols-rounded opacity-5">school</i>
+            <span class="nav-link-text ms-1">Students</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="{% if request.endpoint in ['routes.student_grades'] %}nav-link active{% else %}nav-link{% endif %}" href="{{ url_for('routes.student_grades') }}">
+            <i class="material-symbols-rounded opacity-5">grade</i>
+            <span class="nav-link-text ms-1">Student Grades</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="{% if request.endpoint in ['routes.teachers', 'routes.add_teacher', 'routes.teacher_details', 'routes.edit_teacher'] %}nav-link active{% else %}nav-link{% endif %}" href="{{ url_for('routes.teachers') }}">
+            <i class="material-symbols-rounded opacity-5">supervisor_account</i>
+            <span class="nav-link-text ms-1">Teachers</span>
+          </a>
+        </li>
+        <!-- End Academic Items -->
+
+        <!-- Settings -->
+        <li class="nav-item nav-cat-list">
+          <h6 class="ps-4 ms-2 text-uppercase text-xxs text-dark font-weight-bolder">Settings</h6>
+        </li>
+        {% if current_user.is_tech_role or current_user.is_admin %}
+        <li class="nav-item">
+          <a class="{% if request.endpoint in ['routes.users', 'routes.add_user', 'routes.edit_user'] %}nav-link active{% else %}nav-link{% endif %}" href="{{ url_for('routes.users') }}">
+            <i class="material-symbols-rounded opacity-5">person</i>
+            <span class="nav-link-text ms-1">Users</span>
+          </a>
+        </li>
+        {% endif %}
+        {% if current_user.is_admin %}
+        <li class="nav-item">
+          <a class="{% if request.endpoint in ['routes.roles', 'routes.add_role', 'routes.edit_role'] %}nav-link active{% else %}nav-link{% endif %}" href="{{ url_for('routes.roles') }}">
+            <i class="material-symbols-rounded opacity-5">group_add</i>
+            <span class="nav-link-text ms-1">Roles</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="{% if request.endpoint in ['routes.organization', 'routes.upload_users'] %}nav-link active{% else %}nav-link{% endif %}" href="{{ url_for('routes.organization') }}">
+            <i class="material-symbols-rounded opacity-5">database</i>
+            <span class="nav-link-text ms-1">Data Integration</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="{% if request.endpoint in ['routes.sites', 'routes.add_site', 'routes.edit_site'] %}nav-link active{% else %}nav-link{% endif %}" href="{{ url_for('routes.sites') }}">
+            <i class="material-symbols-rounded opacity-5">house</i>
+            <span class="nav-link-text ms-1">Sites</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="{% if request.endpoint in ['routes.notifications', 'routes.add_notification', 'routes.edit_notification'] %}nav-link active{% else %}nav-link{% endif %}" href="{{ url_for('routes.notifications') }}">
+            <i class="material-symbols-rounded opacity-5">notifications</i>
+            <span class="nav-link-text ms-1">Notifications</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="{% if request.endpoint in ['routes.graduation_settings', 'routes.add_graduation_requirement', 'routes.edit_graduation_requirement'] %}nav-link active{% else %}nav-link{% endif %}" href="{{ url_for('routes.graduation_settings') }}">
+            <i class="material-symbols-rounded opacity-5">school</i>
+            <span class="nav-link-text ms-1">Graduation Settings</span>
+          </a>
+        </li>
+        {% endif %}
+        <li class="nav-item">
+          <a class="{% if request.endpoint in ['routes.profile'] %}nav-link active{% else %}nav-link{% endif %}" href="{{ url_for('routes.profile') }}">
+            <i class="material-symbols-rounded opacity-5">badge</i>
+            <span class="nav-link-text ms-1">Profile</span>
+          </a>
+        </li>
+        <!-- End Settings -->
+
+      </ul>
+    </div>
+
+    <script>
+    (function () {
+      var cats = [];
+      var anyActive = false;
+
+      // First pass: collect all categories and detect which has the active link
+      document.querySelectorAll('#sidenav-main .nav-cat-list').forEach(function (cat) {
+        var h6 = cat.querySelector('h6');
+        if (!h6) return;
+
+        var chevron = document.createElement('i');
+        chevron.className = 'material-symbols-rounded';
+        chevron.style.cssText = 'font-size:0.8rem;vertical-align:middle;float:right;margin-right:0.75rem;margin-top:1px;transition:transform 0.2s;';
+        chevron.textContent = 'expand_more';
+        h6.appendChild(chevron);
+        cat.style.cursor = 'pointer';
+        cat.title = 'Toggle section';
+
+        var items = [];
+        var next = cat.nextElementSibling;
+        while (next && !next.classList.contains('nav-cat-list')) {
+          items.push(next);
+          next = next.nextElementSibling;
+        }
+
+        var key = 'nav-' + h6.textContent.trim().replace(/[^a-z0-9]/gi, '-').toLowerCase();
+        var hasActive = items.some(function (el) {
+          return el.querySelector('.nav-link.active');
+        });
+
+        if (hasActive) anyActive = true;
+        cats.push({ cat: cat, chevron: chevron, items: items, key: key, hasActive: hasActive });
+      });
+
+      // Second pass: open active category, collapse all others when a page is active
+      cats.forEach(function (c) {
+        if (c.hasActive) {
+          c.open = true;
+        } else if (anyActive) {
+          c.open = false;
+        } else {
+          var stored = localStorage.getItem(c.key);
+          c.open = stored !== null ? stored === 'true' : false;
+        }
+
+        c.apply = function () {
+          c.items.forEach(function (el) { el.style.display = c.open ? '' : 'none'; });
+          c.chevron.style.transform = c.open ? '' : 'rotate(-90deg)';
+        };
+
+        c.apply();
+      });
+
+      // Click handler wired in a separate pass so it can see every category — opening one
+      // collapses any others that were open, so only one category is expanded at a time.
+      cats.forEach(function (c) {
+        c.cat.addEventListener('click', function () {
+          c.open = !c.open;
+          if (c.open) {
+            cats.forEach(function (other) {
+              if (other !== c && other.open) {
+                other.open = false;
+                localStorage.setItem(other.key, false);
+                other.apply();
+              }
+            });
+          }
+          localStorage.setItem(c.key, c.open);
+          c.apply();
+        });
+      });
+
+      // Home link resets the sidebar — collapse every category rather than leaving
+      // whatever was open from the previous page.
+      var homeLink = document.getElementById('nav-home-link');
+      if (homeLink) {
+        homeLink.addEventListener('click', function () {
+          cats.forEach(function (c) {
+            c.open = false;
+            localStorage.setItem(c.key, false);
+            c.apply();
+          });
+        });
+      }
+    })();
+    </script>
+
+    <div class="sidenav-footer position-absolute w-100 bottom-0">
+      <div class="mx-3">
+        <div class="d-flex align-items-center gap-2 px-1 py-2 mb-1">
+            <a href="{{ url_for('routes.profile') }}" class="text-sm fw-bold text-dark text-decoration-none d-block text-truncate">
+          <div class="avatar avatar-sm bg-gradient-main rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+               style="width:32px;height:32px;">
+            <i class="material-symbols-rounded text-white" style="font-size:1rem;">person</i>
+          </div>
+          <div style="line-height:1.2;overflow:hidden;">
+              {{ current_user.first_name | capitalize }} {{ current_user.last_name | capitalize }}
+            </a>
+          </div>
+        </div>
+        <a class="btn btn-outline-dark w-100 mb-3" href="{{ url_for('routes.logout') }}" type="button">Log Out</a>
+      </div>
+    </div>
+  </aside>
+  <main class="main-content position-relative max-height-vh-100 h-100 border-radius-lg ">
+    <!-- Navbar -->
+
+
+    <!-- Top Navbar -->
+    <nav class="navbar navbar-main px-0 mx-3 shadow-none border-radius-xl" id="navbarBlur" data-scroll="true">
+      <div class="container-fluid px-3 d-flex flex-column align-items-stretch py-2" style="gap:0.4rem;">
+
+
+
+        <!-- Row 2: Global filters (always visible, inside the navbar) -->
+        <div class="global-filter-bar d-flex flex-nowrap align-items-center justify-content-center gap-3 pt-1">
+          <span class="text-xs text-uppercase fw-bold text-muted" style="white-space:nowrap;">Filters:</span>
+
+        <!-- School Year -->
+        <div class="d-flex align-items-center gap-1">
+          <label class="text-xs text-muted mb-0" for="gf-schoolyear" style="white-space:nowrap;">School Year:</label>
+          <select id="gf-schoolyear" class="form-select form-select-sm" style="min-width:130px;"
+                  onchange="window.location='/set_school_year?yr='+encodeURIComponent(this.value)">
+            {% for yr in global_school_years %}
+            <option value="{{ yr }}" {{ 'selected' if active_schoolyr == yr }}>{{ yr }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Site -->
+        <div class="d-flex align-items-center gap-1">
+          <label class="text-xs text-muted mb-0" for="gf-site" style="white-space:nowrap;">Site:</label>
+          <select id="gf-site" class="form-select form-select-sm" style="min-width:155px;"
+                  onchange="window.location='/set_site_filter?sf='+encodeURIComponent(this.value)">
+            <option value="">All Sites</option>
+            {% for s in global_sites %}
+            <option value="{{ s.id }}" {{ 'selected' if active_site_filter == s.id|string }}>{{ s.site_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Students Status -->
+        <div class="d-flex align-items-center gap-1">
+          <label class="text-xs text-muted mb-0" for="gf-status" style="white-space:nowrap;">Students:</label>
+          <select id="gf-status" class="form-select form-select-sm" style="min-width:150px;"
+                  onchange="window.location='/set_status_filter?sf='+encodeURIComponent(this.value)">
+            <option value="active"   {{ 'selected' if active_status_filter == 'active' }}>Active Only</option>
+            <option value="inactive" {{ 'selected' if active_status_filter == 'inactive' }}>Inactive Only</option>
+            <option value="all"      {{ 'selected' if active_status_filter == 'all' }}>Active &amp; Inactive</option>
+          </select>
+        </div>
+
+        <!-- As of Date -->
+        <div class="d-flex align-items-center gap-1">
+          <label class="text-xs text-muted mb-0" for="gf-snapdate" style="white-space:nowrap;">As of:</label>
+          <input type="date" id="gf-snapdate" class="form-control form-control-sm" style="min-width:140px;"
+                 value="{{ active_snap_date }}"
+                 onchange="window.location='/set_snap_date?d='+encodeURIComponent(this.value)">
+          {% if active_snap_date %}
+          <a href="/set_snap_date?d=" class="text-muted" title="Clear date" style="line-height:1;">
+            <i class="material-symbols-rounded icon-inline" style="pointer-events:none;">close</i>
+          </a>
+          {% endif %}
+        </div>
+
+        </div><!-- end row 2 filters -->
+
+
+
+        <!-- mobile menu row -->
+        <div class="d-flex align-items-center w-100">
+
+
+
+
+
+
+
+
+
+
+
+
+
+          <!-- Mobile menu + user (pushed right) -->
+          <div class="ms-auto d-flex align-items-center gap-3">
+            <div class="mobile-menu mobileOnly" id="menuToggle">
+              <button class="mobile-menu-toggle" aria-expanded="false" aria-controls="menu" aria-label="Open navigation menu">
+                <span></span><span></span><span></span>
+              </button>
+
+
+                <ul class="mobile-menu" id="menu">  
+                  <li class="list-group-item">
+                    <a class="{% if current_page_name == 'Dashboard' %} active{% else %}text-dark{% endif %}" href="{{ url_for('routes.index') }}">Dashboard</a>
+                  </li>
+                  <!-- Dashboards Items -->
+                  <li class="list-group-item nav-cat-list">
+                    <h6 class="ms-2 text-uppercase text-xxs text-dark font-weight-bolder opacity-5">Dashboards</h6>
+                  </li>
+                  <li class="list-group-item">
+                    <a class="{% if request.endpoint in ['routes.demographics'] %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.demographics') }}">Demographics</a>
+                  </li>
+                  <li class="list-group-item">
+                    <a class="{% if request.endpoint in ['routes.absenteeism'] %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.absenteeism') }}">Absenteeism</a>
+                  </li>
+                  <li class="list-group-item">
+                    <a class="{% if request.endpoint in ['routes.discipline_dashboard'] %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.discipline_dashboard') }}">Discipline</a>
+                  </li>
+                  <li class="list-group-item">
+                    <a class="{% if request.endpoint in ['routes.swd_dashboard'] %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.swd_dashboard') }}">SWD</a>
+                  </li>
+                  <li class="list-group-item">
+                    <a class="{% if request.endpoint in ['routes.el_progress_dashboard'] %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.el_progress_dashboard') }}">EL Progress</a>
+                  </li>
+                  <li class="list-group-item">
+                    <a class="{% if request.endpoint in ['routes.enrollment'] %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.enrollment') }}">Enrollment</a>
+                  </li>
+                  <li class="list-group-item">
+                    <a class="{% if request.endpoint in ['routes.attendance_rates'] %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.attendance_rates') }}">Attendance Rates</a>
+                  </li>
+                  <li class="list-group-item">
+                    <a class="{% if request.endpoint in ['routes.early_warning'] %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.early_warning') }}">Early Warning</a>
+                  </li>
+                  <li class="list-group-item">
+                    <a class="{% if request.endpoint in ['routes.calpads_compliance'] %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.calpads_compliance') }}">CALPADS</a>
+                  </li>
+                  <li class="list-group-item">
+                    <a class="{% if request.endpoint in ['routes.graduation_status'] %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.graduation_status') }}">Graduation</a>
+                  </li>
+                  <li class="list-group-item">
+                    <a class="{% if request.endpoint in ['routes.equity_gaps_dashboard'] %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.equity_gaps_dashboard') }}">Equity Gaps</a>
+                  </li>
+                  <!-- End Dashboards Items -->
+
+                  <!-- Academic Items -->
+                  <li class="list-group-item nav-cat-list">
+                    <h6 class="ms-2 text-uppercase text-xxs text-dark font-weight-bolder opacity-5">Academic</h6>
+                  </li>
+                  <li class="list-group-item">
+                    <a class="{% if request.endpoint in ['routes.students', 'routes.add_student', 'routes.student_details'] %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.students') }}">Students</a>
+                  </li>
+                  <li class="list-group-item">
+                    <a class="{% if request.endpoint in ['routes.teachers', 'routes.add_teacher', 'routes.teacher_details', 'routes.edit_teacher'] %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.teachers') }}">Teachers</a>
+                  </li>
+                  <li class="list-group-item">
+                    <a class="{% if request.endpoint in ['routes.courses', 'routes.add_course', 'routes.course_details', 'routes.edit_course'] %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.courses') }}">Courses</a>
+                  </li>
+                  <li class="list-group-item">
+                    <a class="{% if request.endpoint in ['routes.parents', 'routes.add_parent', 'routes.parent_details', 'routes.edit_parent'] %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.parents') }}">Parents</a>
+                  </li>
+                  <!-- End Academic Items -->
+
+                  <!-- Settings -->
+                  <li class="list-group-item nav-cat-list">
+                    <h6 class="ms-2 text-uppercase text-xxs text-dark font-weight-bolder opacity-5">Settings</h6>
+                  </li>
+                  {% if current_user.is_tech_role or current_user.is_admin %}
+                  <li class="list-group-item">
+                    <a class="{% if current_path == '/users' %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.users') }}">Users</a>
+                  </li>
+                  {% endif %}
+                  {% if current_user.is_admin %}
+                  <li class="list-group-item">
+                    <a class="{% if current_path == '/roles' %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.roles') }}">Roles</a>
+                  </li>
+                  <li class="list-group-item">
+                    <a class="{% if current_path == '/organization' %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.organization') }}">Data Integration</a>
+                  </li>
+                  <li class="list-group-item">
+                    <a class="{% if current_path == '/sites' %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.sites') }}">Sites</a>
+                  </li>
+                  <li class="list-group-item">
+                    <a class="{% if current_path == '/notifications' %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.notifications') }}">Notifications</a>
+                  </li>
+                  <li class="list-group-item">
+                    <a class="{% if current_path == '/graduation-settings' %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.graduation_settings') }}">Graduation Settings</a>
+                  </li>
+                  {% endif %}
+                  <li class="list-group-item">
+                    <a class="{% if current_path == '/profile' %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.profile') }}">Profile</a>
+                  </li>
+                  <!-- end mobile menu -->
+                </ul>
+            </div>
+          </div><!-- end ms-auto -->
+
+        </div><!-- end row 1 -->
+
+
+      </div><!-- end container-fluid -->
+    </nav>
+    <!-- end top Navbar -->
+
+    <!-- Breadcrumbs -->
+    {% set _ep = request.endpoint %}
+    {% if _ep != 'routes.index' %}
+    <nav aria-label="breadcrumb" class="px-4 pt-2 pb-1">
+      <ol class="breadcrumb mb-0" style="font-size:0.72rem;">
+        <li class="breadcrumb-item">
+          <a href="{{ url_for('routes.index') }}" class="text-muted text-decoration-none">
+            <i class="material-symbols-rounded" style="font-size:0.8rem;vertical-align:middle;">home</i> Home
+          </a>
+        </li>
+        {% if _ep in ['routes.users', 'routes.add_user', 'routes.edit_user',
+                       'routes.roles', 'routes.add_role', 'routes.edit_role',
+                       'routes.organization', 'routes.upload_users',
+                       'routes.sites', 'routes.add_site', 'routes.edit_site',
+                       'routes.notifications', 'routes.add_notification', 'routes.edit_notification',
+                       'routes.graduation_settings', 'routes.add_graduation_requirement', 'routes.edit_graduation_requirement',
+                       'routes.profile'] %}
+        <li class="breadcrumb-item text-muted">Settings</li>
+        {% endif %}
+        {% if _ep in ['routes.add_course', 'routes.edit_course', 'routes.course_details'] %}
+        <li class="breadcrumb-item"><a href="{{ url_for('routes.courses') }}" class="text-muted text-decoration-none">Courses</a></li>
+        {% elif _ep in ['routes.add_parent', 'routes.edit_parent', 'routes.parent_details'] %}
+        <li class="breadcrumb-item"><a href="{{ url_for('routes.parents') }}" class="text-muted text-decoration-none">Parents</a></li>
+        {% elif _ep in ['routes.add_student', 'routes.student_details'] %}
+        <li class="breadcrumb-item"><a href="{{ url_for('routes.students') }}" class="text-muted text-decoration-none">Students</a></li>
+        {% elif _ep in ['routes.add_teacher', 'routes.edit_teacher', 'routes.teacher_details'] %}
+        <li class="breadcrumb-item"><a href="{{ url_for('routes.teachers') }}" class="text-muted text-decoration-none">Teachers</a></li>
+        {% elif _ep in ['routes.add_user', 'routes.edit_user'] %}
+        <li class="breadcrumb-item"><a href="{{ url_for('routes.users') }}" class="text-muted text-decoration-none">Users</a></li>
+        {% elif _ep in ['routes.add_role', 'routes.edit_role'] %}
+        <li class="breadcrumb-item"><a href="{{ url_for('routes.roles') }}" class="text-muted text-decoration-none">Roles</a></li>
+        {% elif _ep in ['routes.add_site', 'routes.edit_site'] %}
+        <li class="breadcrumb-item"><a href="{{ url_for('routes.sites') }}" class="text-muted text-decoration-none">Sites</a></li>
+        {% elif _ep in ['routes.add_notification', 'routes.edit_notification'] %}
+        <li class="breadcrumb-item"><a href="{{ url_for('routes.notifications') }}" class="text-muted text-decoration-none">Notifications</a></li>
+        {% elif _ep in ['routes.add_graduation_requirement', 'routes.edit_graduation_requirement'] %}
+        <li class="breadcrumb-item"><a href="{{ url_for('routes.graduation_settings') }}" class="text-muted text-decoration-none">Graduation Settings</a></li>
+        {% elif _ep == 'routes.upload_users' %}
+        <li class="breadcrumb-item"><a href="{{ url_for('routes.organization') }}" class="text-muted text-decoration-none">Data Integration</a></li>
+        {% endif %}
+        <li class="breadcrumb-item active fw-semibold" aria-current="page" style="color:var(--color-text,#344767);">{{ current_page_name }}</li>
+      </ol>
+    </nav>
+    {% endif %}
+    <!-- End Breadcrumbs -->
+
+
+
+
+
+    <!-- Navbar -->

@@ -1,0 +1,633 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="row">
+  <div class="col-12">
+    <div class="main-card-box card my-4">
+      <div class="card-header p-0 position-relative mt-n4 mx-3 z-index-2">
+        <div class="bg-gradient-main shadow-dark border-radius-lg pt-4 pb-3">
+          <h2 class="text-white text-capitalize ps-3">
+            <i class="material-symbols-rounded opacity-5">school</i>
+            {{ student.last_name }}, {{ student.first_name }} {{ student.middle_name or '' }}
+          </h2>
+        </div>
+      </div>
+      <div class="card-body px-4 pb-4">
+
+        <!-- Personal Info (always visible) -->
+        <div class="row g-3 mb-4 mt-2">
+          <div class="col-12 col-sm-6 col-lg-3">
+            <p class="text-xs text-muted mb-0"><strong>First Name</strong></p>
+            <p class="text-sm font-weight-bold text-capitalize mb-0">{{ student.first_name }}</p>
+          </div>
+          <div class="col-12 col-sm-6 col-lg-3">
+            <p class="text-xs text-muted mb-0"><strong>Middle Name</strong></p>
+            <p class="text-sm font-weight-bold text-capitalize mb-0">{{ student.middle_name or '—' }}</p>
+          </div>
+          <div class="col-12 col-sm-6 col-lg-3">
+            <p class="text-xs text-muted mb-0"><strong>Last Name</strong></p>
+            <p class="text-sm font-weight-bold text-capitalize mb-0">{{ student.last_name }}</p>
+          </div>
+          <div class="col-12 col-sm-6 col-lg-3">
+            <p class="text-xs text-muted mb-0"><strong>Date of Birth</strong></p>
+            <p class="text-sm font-weight-bold mb-0">{{ student.date_of_birth.strftime('%m/%d/%Y') if student.date_of_birth else '—' }}</p>
+          </div>
+          <div class="col-12 col-sm-6 col-lg-3">
+            <p class="text-xs text-muted mb-0"><strong>Gender</strong></p>
+            <p class="text-sm font-weight-bold mb-0">
+              {% if student.gender == 'M' %}Male
+              {% elif student.gender == 'F' %}Female
+              {% elif student.gender == 'X' %}Non-Binary
+              {% elif student.gender == 'U' %}Unknown
+              {% else %}—{% endif %}
+            </p>
+          </div>
+          <div class="col-12 col-sm-6 col-lg-3">
+            <p class="text-xs text-muted mb-0"><strong>Email</strong></p>
+            <p class="text-sm font-weight-bold mb-0">{{ student.email or '—' }}</p>
+          </div>
+          <div class="col-12 col-sm-6 col-lg-3">
+            <p class="text-xs text-muted mb-0"><strong>Site</strong></p>
+            <p class="text-sm font-weight-bold mb-0">{{ student.site.site_name }}</p>
+          </div>
+          <div class="col-12 col-sm-6 col-lg-3">
+            <p class="text-xs text-muted mb-0"><strong>Grade</strong></p>
+            <p class="text-sm font-weight-bold mb-0">{{ student.grade }}</p>
+          </div>
+          <div class="col-12 col-sm-6 col-lg-3">
+            <p class="text-xs text-muted mb-0"><strong>Student ID</strong></p>
+            <p class="text-sm font-weight-bold mb-0">{{ student.student_id }}</p>
+          </div>
+          <div class="col-12 col-sm-6 col-lg-3">
+            <p class="text-xs text-muted mb-0"><strong>SSID</strong></p>
+            <p class="text-sm font-weight-bold mb-0">{{ student.ssid or '—' }}</p>
+          </div>
+        </div>
+
+        <!-- Tabs -->
+        <ul class="nav nav-tabs mb-4" id="studentDetailTabs" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="tab-courses" data-bs-toggle="tab" data-bs-target="#pane-courses"
+                    type="button" role="tab">
+              Courses
+              {% if student.courses %}
+              <span class="badge bg-secondary ms-1 badge-sm">{{ student.active_courses | length }}</span>
+              {% endif %}
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-absences" data-bs-toggle="tab" data-bs-target="#pane-absences"
+                    type="button" role="tab">
+              Absences
+              {% if student_absences %}
+              <span class="badge bg-secondary ms-1 badge-sm">{{ student_absences | length }}</span>
+              {% endif %}
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-incidents" data-bs-toggle="tab" data-bs-target="#pane-incidents"
+                    type="button" role="tab">
+              Incidents
+              {% if student_incidents %}
+              <span class="badge bg-danger ms-1 badge-sm">{{ student_incidents | length }}</span>
+              {% endif %}
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-interventions" data-bs-toggle="tab" data-bs-target="#pane-interventions"
+                    type="button" role="tab">
+              Interventions
+              {% if student_interventions %}
+              <span class="badge {{ 'bg-success' if active_intervention_count else 'bg-secondary' }} ms-1 badge-sm">{{ student_interventions | length }}</span>
+              {% endif %}
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-grades" data-bs-toggle="tab" data-bs-target="#pane-grades"
+                    type="button" role="tab">
+              Grades
+              {% if student_grade_records %}
+              <span class="badge bg-secondary ms-1 badge-sm">{{ student_grade_records | length }}</span>
+              {% endif %}
+            </button>
+          </li>
+          {% if show_graduation_tab %}
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-graduation" data-bs-toggle="tab" data-bs-target="#pane-graduation"
+                    type="button" role="tab">Graduation</button>
+          </li>
+          {% endif %}
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-parents" data-bs-toggle="tab" data-bs-target="#pane-parents"
+                    type="button" role="tab">
+              Parents
+              {% if student.parents %}
+              <span class="badge bg-secondary ms-1 badge-sm">{{ student.parents | length }}</span>
+              {% endif %}
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-other" data-bs-toggle="tab" data-bs-target="#pane-other"
+                    type="button" role="tab">Other Information</button>
+          </li>
+        </ul>
+
+        <div class="tab-content" id="studentDetailTabsContent">
+
+          <!-- Tab: Courses -->
+          <div class="tab-pane fade show active" id="pane-courses" role="tabpanel">
+            {% if student.courses %}
+            <div class="table-responsive">
+              <table class="table align-items-center mb-0 table-striped">
+                <thead>
+                  <tr>
+                    <th class="text-uppercase text-xxs font-weight-bolder">Course</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder text-center">Section ID</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder text-center">Period</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder text-center">Term</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder text-center">Start Date</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder text-center">Leave Date</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder text-center">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for course in student.courses | selectattr('teacher') | selectattr('term_code') | sort(attribute='term_code,period') %}
+                  {% set course_grades = student_grade_records | selectattr('grades_coursenum', 'equalto', course.course_code) | list %}
+                  {% set dates = course_dates.get(course.id) %}
+                  {% set start_date = dates[0] if dates else None %}
+                  {% set leave_date = dates[1] if dates else None %}
+                  {% if course_grades %}
+                    {% for gr in course_grades %}
+                    <tr class="table-highlight-row">
+                      {% if loop.first %}
+                      <td rowspan="{{ course_grades | length }}">
+                        {% if course.teacher %}
+                        <a href="{{ url_for('routes.teacher_details', teacher_id=course.teacher.id) }}"
+                           class="text-secondary text-xs font-weight-bold d-block">
+                          {{ course.teacher.last_name }}, {{ course.teacher.first_name }}
+                        </a>
+                        {% endif %}
+                        <a href="{{ url_for('routes.course_details', course_id=course.id) }}"
+                           class="text-sm font-weight-bold text-dark">{{ course.course_name }}</a>
+                      </td>
+                      <td rowspan="{{ course_grades | length }}" class="text-center"><p class="text-xs font-weight-bold mb-0 text-uppercase">{{ course.section_id or '—' }}</p></td>
+                      <td rowspan="{{ course_grades | length }}" class="text-center"><p class="text-xs font-weight-bold mb-0">{{ course.period or '—' }}</p></td>
+                      {% endif %}
+                      <td class="text-center"><p class="text-xs font-weight-bold mb-0">{{ course.term_code or '—' }}</p></td>
+                      {% if loop.first %}
+                      <td rowspan="{{ course_grades | length }}" class="text-center"><p class="text-xs font-weight-bold mb-0">{{ start_date.strftime('%m/%d/%y') if start_date else '—' }}</p></td>
+                      <td rowspan="{{ course_grades | length }}" class="text-center"><p class="text-xs font-weight-bold mb-0">{{ leave_date.strftime('%m/%d/%y') if leave_date else '—' }}</p></td>
+                      <td rowspan="{{ course_grades | length }}" class="text-center">
+                        {% if leave_date %}
+                        <span class="badge badge-sm bg-secondary">Inactive</span>
+                        {% else %}
+                        <span class="badge badge-sm {{ 'bg-success' if course.status == 'Active' else 'bg-secondary' }}">
+                          {{ course.status }}
+                        </span>
+                        {% endif %}
+                      </td>
+                      {% endif %}
+                    </tr>
+                    {% endfor %}
+                  {% else %}
+                  <tr class="table-highlight-row">
+                    <td>
+                      {% if course.teacher %}
+                      <a href="{{ url_for('routes.teacher_details', teacher_id=course.teacher.id) }}"
+                         class="text-secondary text-xs font-weight-bold d-block">
+                        {{ course.teacher.last_name }}, {{ course.teacher.first_name }}
+                      </a>
+                      {% endif %}
+                      <a href="{{ url_for('routes.course_details', course_id=course.id) }}"
+                         class="text-sm font-weight-bold text-dark">{{ course.course_name }}</a>
+                    </td>
+                    <td class="text-center"><p class="text-xs font-weight-bold mb-0 text-uppercase">{{ course.section_id or '—' }}</p></td>
+                    <td class="text-center"><p class="text-xs font-weight-bold mb-0">{{ course.period or '—' }}</p></td>
+                    <td class="text-center"><p class="text-xs font-weight-bold mb-0">{{ course.term_code or '—' }}</p></td>
+                    <td class="text-center"><p class="text-xs font-weight-bold mb-0">{{ start_date.strftime('%m/%d/%y') if start_date else '—' }}</p></td>
+                    <td class="text-center"><p class="text-xs font-weight-bold mb-0">{{ leave_date.strftime('%m/%d/%y') if leave_date else '—' }}</p></td>
+                    <td class="text-center">
+                      {% if leave_date %}
+                      <span class="badge badge-sm bg-secondary">Inactive</span>
+                      {% else %}
+                      <span class="badge badge-sm {{ 'bg-success' if course.status == 'Active' else 'bg-secondary' }}">
+                        {{ course.status }}
+                      </span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endif %}
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <p class="text-sm text-muted py-3">No courses enrolled.</p>
+            {% endif %}
+          </div>
+
+          <!-- Tab: Absences -->
+          <div class="tab-pane fade" id="pane-absences" role="tabpanel">
+            {% if student_absences %}
+            <div class="table-responsive">
+              <table class="table align-items-center mb-0 table-striped">
+                <thead>
+                  <tr>
+                    <th class="text-uppercase text-xxs font-weight-bolder">Date</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder text-center">Day</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder text-center">Grade</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder text-center">School Year</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder text-center">Site</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for absence in student_absences %}
+                  <tr class="table-highlight-row">
+                    <td><p class="text-xs font-weight-bold mb-0">{{ absence.abs_date.strftime('%m/%d/%Y') if absence.abs_date else '—' }}</p></td>
+                    <td class="text-center"><p class="text-xs font-weight-bold mb-0">{{ absence.abs_date.strftime('%A') if absence.abs_date else '—' }}</p></td>
+                    <td class="text-center"><p class="text-xs font-weight-bold mb-0">{{ absence.grade or '—' }}</p></td>
+                    <td class="text-center"><p class="text-xs font-weight-bold mb-0">{{ absence.school_yr or '—' }}</p></td>
+                    <td class="text-center"><span class="text-secondary text-xs font-weight-bold">{{ absence.site.site_name }}</span></td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <p class="text-sm text-muted py-3">No absence records found.</p>
+            {% endif %}
+          </div>
+
+          <!-- Tab: Incidents -->
+          <div class="tab-pane fade" id="pane-incidents" role="tabpanel">
+            {% if student_incidents %}
+            <div class="table-responsive">
+              <table class="table align-items-center mb-0 table-striped">
+                <thead>
+                  <tr>
+                    <th class="text-uppercase text-xxs font-weight-bolder">Incident ID</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder">Date</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder">Day</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder">Time</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder">Type</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder">Infraction</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder text-end">Suspended Days</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for inc in student_incidents %}
+                  <tr class="table-highlight-row">
+                    <td><p class="text-xs font-weight-bold mb-0">{{ inc.incident_id or '—' }}</p></td>
+                    <td><p class="text-xs font-weight-bold mb-0">{{ inc.incident_date.strftime('%m/%d/%Y') if inc.incident_date else '—' }}</p></td>
+                    <td><p class="text-xs mb-0">{{ inc.day_of_week or '—' }}</p></td>
+                    <td><p class="text-xs mb-0">{{ inc.incident_time or '—' }}</p></td>
+                    <td>
+                      {% if inc.major %}
+                      <span class="badge badge-sm bg-danger">Major</span>
+                      {% elif inc.minor %}
+                      <span class="badge badge-sm bg-warning text-dark">Minor</span>
+                      {% else %}
+                      <span class="text-muted text-xs">—</span>
+                      {% endif %}
+                    </td>
+                    <td><p class="text-xs font-weight-bold mb-0">{{ inc.major or inc.minor or '—' }}</p></td>
+                    <td class="text-end"><p class="text-xs font-weight-bold mb-0">{{ inc.suspended_days if inc.suspended_days else '—' }}</p></td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <p class="text-sm text-muted py-3">No incident records found.</p>
+            {% endif %}
+          </div>
+
+          <!-- Tab: Interventions -->
+          <div class="tab-pane fade" id="pane-interventions" role="tabpanel">
+            <div class="d-flex justify-content-end mb-3">
+              <a href="{{ url_for('routes.add_intervention', student_id=student.id) }}" class="btn btn-sm bg-gradient-main">
+                <i class="material-symbols-rounded icon-inline">add</i> Log Intervention
+              </a>
+            </div>
+            {% if student_interventions %}
+            <div class="table-responsive">
+              <table class="table align-items-center mb-0 table-striped">
+                <thead>
+                  <tr>
+                    <th class="text-uppercase text-xxs font-weight-bolder text-center">Tier</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder text-center">Category</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder">Intervention</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder text-center">Start</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder text-center">End</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder text-center">Status</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder text-center">Outcome</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder text-center">Edit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for iv in student_interventions %}
+                  <tr class="table-highlight-row">
+                    <td class="text-center">
+                      <span class="badge badge-sm {{ 'bg-danger' if iv.tier == 'Tier 3' else 'bg-warning text-dark' if iv.tier == 'Tier 2' else 'bg-secondary' }}">{{ iv.tier }}</span>
+                    </td>
+                    <td class="text-center"><p class="text-xs font-weight-bold mb-0">{{ iv.category }}</p></td>
+                    <td><p class="text-xs mb-0">{{ iv.description }}</p></td>
+                    <td class="text-center"><p class="text-xs mb-0">{{ iv.start_date.strftime('%m/%d/%Y') if iv.start_date else '—' }}</p></td>
+                    <td class="text-center"><p class="text-xs mb-0">{{ iv.end_date.strftime('%m/%d/%Y') if iv.end_date else '—' }}</p></td>
+                    <td class="text-center">
+                      <span class="badge badge-sm {{ 'bg-success' if iv.status == 'Active' else 'bg-secondary' }}">{{ iv.status }}</span>
+                    </td>
+                    <td class="text-center">
+                      {% if iv.outcome == 'Improved' %}<span class="text-success text-xs fw-bold">Improved</span>
+                      {% elif iv.outcome == 'Worsened' %}<span class="text-danger text-xs fw-bold">Worsened</span>
+                      {% elif iv.outcome == 'No Change' %}<span class="text-muted text-xs">No Change</span>
+                      {% else %}<span class="text-muted text-xs">—</span>
+                      {% endif %}
+                    </td>
+                    <td class="text-center">
+                      <a href="{{ url_for('routes.edit_intervention', intervention_id=iv.id) }}" class="btn btn-sm table-button-edit">
+                        <i class="material-symbols-rounded position-relative text-lg">edit</i>
+                      </a>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <p class="text-sm text-muted py-3">No interventions logged yet.</p>
+            {% endif %}
+          </div>
+
+          <!-- Tab: Grades -->
+          <div class="tab-pane fade" id="pane-grades" role="tabpanel">
+            {% if student_grade_records %}
+            <div class="table-responsive">
+              <table class="table align-items-center mb-0 table-striped">
+                <thead>
+                  <tr>
+                    <th class="text-uppercase text-xxs font-weight-bolder">Course</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder text-center">Section ID</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder text-center">Letter</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder">Term</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder">Year</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder text-end">Cr Att</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder text-end">Cr Comp</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for gr in student_grade_records %}
+                  <tr class="table-highlight-row">
+                    <td><p class="text-xs font-weight-bold mb-0">{{ grade_course_names.get(gr.id) or gr.grades_coursenum or '—' }}</p></td>
+                    <td class="text-center"><p class="text-xs font-weight-bold mb-0">{{ gr.grades_coursenum or '—' }}</p></td>
+                    <td class="text-center">
+                      {% set g = gr.grades_grade %}
+                      {% if g %}
+                      <span class="badge
+                        {%- if g == 'A' %} bg-success
+                        {%- elif g == 'B' %} bg-primary
+                        {%- elif g == 'C' %} bg-warning text-dark
+                        {%- elif g == 'D' %} bg-orange text-white
+                        {%- else %} bg-danger
+                        {%- endif %}" style="font-size:0.7rem;min-width:1.8rem;">{{ g }}</span>
+                      {% else %}—{% endif %}
+                    </td>
+                    <td><p class="text-xs font-weight-bold mb-0">{{ gr.grades_term or '—' }}</p></td>
+                    <td><p class="text-xs font-weight-bold mb-0">{{ gr.grades_courseyr or '—' }}</p></td>
+                    <td class="text-end text-xs">{{ gr.grades_credatt if gr.grades_credatt else '—' }}</td>
+                    <td class="text-end text-xs">{{ gr.grades_credcomp if gr.grades_credcomp else '—' }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <p class="text-sm text-muted py-3">No grade records found.</p>
+            {% endif %}
+          </div>
+
+          <!-- Tab: Graduation -->
+          {% if show_graduation_tab %}
+          <div class="tab-pane fade" id="pane-graduation" role="tabpanel">
+            <div class="d-flex align-items-baseline mb-3">
+              <h5 class="mb-0 me-2">Graduation Status</h5>
+              <span class="text-sm text-muted fst-italic">Class of {{ student.gradyr or '—' }}</span>
+            </div>
+
+            <div class="table-responsive mb-4">
+              <table class="table align-items-center mb-0 table-striped">
+                <thead>
+                  <tr>
+                    <th class="text-uppercase text-xxs font-weight-bolder">Subject Area</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder text-end">Required</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder text-end">Completed</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder text-end">In Progress</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder text-end">Remaining</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in grad_subject_rows %}
+                  <tr class="table-highlight-row">
+                    <td><p class="text-sm font-weight-bold mb-0">{{ row.subject }}</p></td>
+                    <td class="text-end text-sm">{{ '%.2f' | format(row.required) }}</td>
+                    <td class="text-end text-sm">{{ '%.2f' | format(row.completed) }}</td>
+                    <td class="text-end text-sm">{{ '%.2f' | format(row.in_progress) }}</td>
+                    <td class="text-end text-sm">{{ '%.2f' | format(row.remaining) }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+                {% if grad_totals %}
+                <tfoot>
+                  <tr class="bg-light">
+                    <td class="text-end font-weight-bolder text-sm">Total</td>
+                    <td class="text-end font-weight-bolder text-sm">{{ '%.2f' | format(grad_totals.required) }}</td>
+                    <td class="text-end font-weight-bolder text-sm">{{ '%.2f' | format(grad_totals.completed) }}</td>
+                    <td class="text-end font-weight-bolder text-sm">{{ '%.2f' | format(grad_totals.in_progress) }}</td>
+                    <td class="text-end font-weight-bolder text-sm">{{ '%.2f' | format(grad_totals.remaining) }}</td>
+                  </tr>
+                </tfoot>
+                {% endif %}
+              </table>
+            </div>
+
+            <div class="table-responsive">
+              <table class="table align-items-center mb-0">
+                <thead>
+                  <tr>
+                    <th class="text-uppercase text-xxs font-weight-bolder">Subject Area</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder">Progress</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in grad_subject_rows %}
+                  <tr class="table-highlight-row">
+                    <td style="width: 220px;"><p class="text-sm font-weight-bold mb-0">{{ row.subject }}</p></td>
+                    <td>
+                      <div class="d-flex align-items-center">
+                        <span class="text-success font-weight-bold text-sm me-2" style="width: 3.5rem;">{{ row.pct }}%</span>
+                        <div class="progress flex-grow-1" style="height: 10px;">
+                          <div class="progress-bar bg-success" role="progressbar"
+                               style="width: {{ row.pct }}%;" aria-valuenow="{{ row.pct }}"
+                               aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          {% endif %}
+
+          <!-- Tab: Parents -->
+          <div class="tab-pane fade" id="pane-parents" role="tabpanel">
+            {% if student.parents %}
+            <div class="table-responsive">
+              <table class="table align-items-center mb-0 table-striped">
+                <thead>
+                  <tr>
+                    <th class="text-uppercase text-xxs font-weight-bolder">Name</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder">Relationship</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder">Email</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder">Phone</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for parent in student.parents %}
+                  <tr class="table-highlight-row">
+                    <td>
+                      <a href="{{ url_for('routes.parent_details', parent_id=parent.id) }}"
+                         class="text-sm font-weight-bold text-capitalize text-dark text-decoration-none mb-0">
+                        {{ parent.last_name }}, {{ parent.first_name }}{% if parent.middle_name %} {{ parent.middle_name }}{% endif %}
+                      </a>
+                    </td>
+                    <td><p class="text-xs font-weight-bold mb-0">{{ parent.relationship or '—' }}</p></td>
+                    <td><p class="text-xs mb-0">{{ parent.email or '—' }}</p></td>
+                    <td><p class="text-xs mb-0">{{ parent.phone or '—' }}</p></td>
+                    <td>
+                      <span class="badge badge-sm {{ 'bg-success' if parent.status == 'Active' else 'bg-secondary' }}">
+                        {{ parent.status }}
+                      </span>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <p class="text-sm text-muted py-3">No parent or guardian records linked.</p>
+            {% endif %}
+          </div>
+
+          <!-- Tab: Other Information -->
+          <div class="tab-pane fade" id="pane-other" role="tabpanel">
+
+            <p class="text-uppercase text-xs text-muted fw-bold mb-2">Academic Placement</p>
+            <hr class="mt-0 mb-3">
+            <div class="row g-3 mb-4">
+              <div class="col-12 col-sm-6 col-lg-3">
+                <p class="text-xs text-muted mb-0"><strong>Graduation Year</strong></p>
+                <p class="text-sm font-weight-bold mb-0">{{ student.gradyr or '—' }}</p>
+              </div>
+              <div class="col-12 col-sm-6 col-lg-3">
+                <p class="text-xs text-muted mb-0"><strong>School Year</strong></p>
+                <p class="text-sm font-weight-bold mb-0">{{ student.schoolyr or '—' }}</p>
+              </div>
+              <div class="col-12 col-sm-6 col-lg-3">
+                <p class="text-xs text-muted mb-0"><strong>Enter Date</strong></p>
+                <p class="text-sm font-weight-bold mb-0">{{ student.enter_date.strftime('%m/%d/%Y') if student.enter_date else '—' }}</p>
+              </div>
+              <div class="col-12 col-sm-6 col-lg-3">
+                <p class="text-xs text-muted mb-0"><strong>Exit Date</strong></p>
+                <p class="text-sm font-weight-bold mb-0">{{ student.exit_date.strftime('%m/%d/%Y') if student.exit_date else '—' }}</p>
+              </div>
+              <div class="col-12 col-sm-6 col-lg-3">
+                <p class="text-xs text-muted mb-0"><strong>CDS Code</strong></p>
+                <p class="text-sm font-weight-bold mb-0">{{ student.cds_code or '—' }}</p>
+              </div>
+              <div class="col-12 col-sm-6 col-lg-3">
+                <p class="text-xs text-muted mb-0"><strong>Status</strong></p>
+                <span class="badge badge-sm {{ 'bg-success' if student.status == 'Active' else 'bg-secondary' }}">
+                  {{ student.status }}
+                </span>
+              </div>
+            </div>
+
+            <p class="text-uppercase text-xs text-muted fw-bold mb-2 mt-2">Demographics &amp; Programs</p>
+            <hr class="mt-0 mb-3">
+            <div class="row g-3 mb-2">
+              <div class="col-12 col-sm-6 col-lg-3">
+                <p class="text-xs text-muted mb-0"><strong>Ethnicity</strong></p>
+                <p class="text-sm font-weight-bold mb-0">
+                  {% if student.ethnicity == '100' %}Native American or Alaska Native
+                  {% elif student.ethnicity == '200' %}Asian
+                  {% elif student.ethnicity == '300' %}Pacific Islander
+                  {% elif student.ethnicity == '400' %}Filipino
+                  {% elif student.ethnicity == '500' %}Hispanic or Latino
+                  {% elif student.ethnicity == '600' %}African American
+                  {% elif student.ethnicity == '700' %}White
+                  {% elif student.ethnicity == '900' %}Two or More Races
+                  {% else %}—{% endif %}
+                </p>
+              </div>
+              <div class="col-12 col-sm-6 col-lg-3">
+                <p class="text-xs text-muted mb-0"><strong>English Status</strong></p>
+                <p class="text-sm font-weight-bold mb-0">{{ student.english_status or '—' }}</p>
+              </div>
+              <div class="col-12 col-sm-6 col-lg-3">
+                <p class="text-xs text-muted mb-0"><strong>FRM Code</strong></p>
+                <p class="text-sm font-weight-bold mb-0">
+                  {% if student.frm_code == 'F' %}Free
+                  {% elif student.frm_code == 'R' %}Reduced
+                  {% elif student.frm_code == 'P' %}Paid
+                  {% else %}—{% endif %}
+                </p>
+              </div>
+              <div class="col-12 col-sm-6 col-lg-3">
+                <p class="text-xs text-muted mb-0"><strong>Dwelling</strong></p>
+                <p class="text-sm font-weight-bold mb-0">
+                  {% if student.dwelling == 'H' %}Home
+                  {% elif student.dwelling == 'S' %}Shelter
+                  {% elif student.dwelling == 'D' %}Doubled-Up
+                  {% elif student.dwelling == 'M' %}Motel/Hotel
+                  {% elif student.dwelling == 'U' %}Unsheltered
+                  {% elif student.dwelling == 'O' %}Other
+                  {% else %}—{% endif %}
+                </p>
+              </div>
+              <div class="col-12 col-sm-6 col-lg-3">
+                <p class="text-xs text-muted mb-0"><strong>Disability</strong></p>
+                <p class="text-sm font-weight-bold mb-0">{{ student.disability or '—' }}</p>
+              </div>
+              <div class="col-12 col-sm-6 col-lg-3">
+                <p class="text-xs text-muted mb-0"><strong>504 Plan</strong></p>
+                <span class="badge badge-sm {{ 'bg-success' if student.sed504 else 'bg-secondary' }}">
+                  {{ 'Yes' if student.sed504 else 'No' }}
+                </span>
+              </div>
+              <div class="col-12 col-sm-6 col-lg-3">
+                <p class="text-xs text-muted mb-0"><strong>Migrant</strong></p>
+                <span class="badge badge-sm {{ 'bg-success' if student.migrant else 'bg-secondary' }}">
+                  {{ 'Yes' if student.migrant else 'No' }}
+                </span>
+              </div>
+              <div class="col-12 col-sm-6 col-lg-3">
+                <p class="text-xs text-muted mb-0"><strong>Foster Youth</strong></p>
+                <span class="badge badge-sm {{ 'bg-success' if student.foster else 'bg-secondary' }}">
+                  {{ 'Yes' if student.foster else 'No' }}
+                </span>
+              </div>
+            </div>
+
+          </div>
+
+        </div><!-- /.tab-content -->
+
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

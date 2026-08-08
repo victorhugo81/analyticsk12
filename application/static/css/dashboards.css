@@ -1,0 +1,258 @@
+/* ── Shared utilities ────────────────────────────────────────────────────
+   Replaces the most-repeated inline style="" patterns found across dashboard
+   templates (icon sizing, small badges, KPI icon color pairs). Colors resolve
+   through the --status-* tokens in style.css so there's one place to retune
+   the red/amber/green/gray/blue palette instead of hex scattered per template. */
+
+.icon-inline    { font-size: 1rem; vertical-align: middle; }
+.icon-inline-sm { font-size: 0.85rem; vertical-align: middle; }
+.icon-inline-lg { font-size: 1.2rem; vertical-align: middle; }
+/* .badge-sm already exists in style.css (0.65rem + padding) — reused as-is below,
+   not redefined here, so the two don't fight over one badge's size. */
+
+.text-status-critical { color: var(--status-critical) !important; }
+.text-status-warning  { color: var(--status-warning) !important; }
+.text-status-good     { color: var(--status-good) !important; }
+.text-status-neutral  { color: var(--status-neutral) !important; }
+.text-status-info     { color: var(--status-info) !important; }
+
+.bg-status-critical-soft { background: var(--status-critical-bg) !important; }
+.bg-status-warning-soft  { background: var(--status-warning-bg) !important; }
+.bg-status-good-soft     { background: var(--status-good-bg) !important; }
+.bg-status-neutral-soft  { background: var(--status-neutral-bg) !important; }
+.bg-status-info-soft     { background: var(--status-info-bg) !important; }
+
+/* KPI icon chip — pairs a soft background with an icon tinted to match,
+   the pattern every "demo-kpi-icon" was hand-coloring inline. */
+.kpi-icon--critical { background: var(--status-critical-bg); }
+.kpi-icon--critical .material-symbols-rounded { color: var(--status-critical); }
+.kpi-icon--warning  { background: var(--status-warning-bg); }
+.kpi-icon--warning  .material-symbols-rounded { color: var(--status-warning); }
+.kpi-icon--good     { background: var(--status-good-bg); }
+.kpi-icon--good     .material-symbols-rounded { color: var(--status-good); }
+.kpi-icon--neutral  { background: var(--status-neutral-bg); }
+.kpi-icon--neutral  .material-symbols-rounded { color: var(--status-neutral); }
+.kpi-icon--info     { background: var(--status-info-bg); }
+.kpi-icon--info     .material-symbols-rounded { color: var(--status-info); }
+.kpi-icon--severe   { background: var(--status-critical-bg); }
+.kpi-icon--severe   .material-symbols-rounded { color: var(--status-severe); }
+.text-status-severe { color: var(--status-severe) !important; }
+
+/* Gap/status badges — colored pill with a direction glyph so the signal
+   isn't color-only (red/amber/gray/green all read the same to a color-blind
+   user without the ▲/▼ prefix). */
+.gap-badge { font-size: 0.7rem; font-weight: 700; }
+.gap-badge .dir { font-size: 0.6rem; margin-right: 0.15rem; }
+
+/* Global filter bar (nav.html) — horizontal strip on tablet/desktop, but a
+   horizontally-scrolling row of 4 selects is a poor fit on a phone, so it
+   stacks to one column below 575px instead. */
+.global-filter-bar { overflow-x: auto; }
+@media (max-width: 575px) {
+  .global-filter-bar { flex-wrap: wrap !important; overflow-x: visible; row-gap: 0.5rem !important; }
+  .global-filter-bar > div { width: 100%; }
+  .global-filter-bar > div > select,
+  .global-filter-bar > div > input { flex: 1; }
+}
+
+/* ── Demographics dashboard ─────────────────────────────────────────────── */
+
+.demo-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+@media (max-width: 991px) { .demo-kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 575px)  { .demo-kpi-grid { grid-template-columns: 1fr; } }
+
+.demo-kpi {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+  padding: 1.2rem 1.4rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+a.demo-kpi:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg, 0 8px 24px rgba(0,0,0,0.12));
+  text-decoration: none;
+  color: inherit;
+}
+.demo-kpi-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.demo-kpi-icon .material-symbols-rounded { font-size: 1.4rem; }
+.demo-kpi-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+  margin-bottom: 0.2rem;
+}
+.demo-kpi-value {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--color-text);
+  line-height: 1;
+}
+.demo-kpi-sub {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin-top: 0.15rem;
+}
+
+.chart-card {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+  padding: 1.25rem;
+  height: 100%;
+}
+.chart-card-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--color-text-muted);
+  margin-bottom: 1rem;
+}
+.chart-wrap          { position: relative; }
+.chart-wrap--donut   { height: 240px; }
+.chart-wrap--bar     { height: 260px; }
+.chart-wrap--hbar    { height: 300px; }
+
+.program-badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.program-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #f8f9fa;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 0.9rem 1.2rem;
+  min-width: 100px;
+  flex: 1;
+}
+.program-badge-num {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--color-text);
+  line-height: 1;
+}
+.program-badge-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  margin-top: 0.35rem;
+  text-align: center;
+}
+
+/* ── Print styles ───────────────────────────────────────────────────────── */
+
+@media print {
+  @page { size: landscape; margin: 0.4cm; }
+
+  aside, nav, .alert-container-box, footer, .no-print { display: none !important; }
+
+  body, .main-content { margin: 0 !important; padding: 0 !important; background: #fff !important; }
+  .main-card-box { box-shadow: none !important; border: none !important; margin: 0 !important; }
+  .card-header   { display: none !important; }
+  .card-body     { padding: 0.25rem !important; } /* zoom applied dynamically by printDashboard() */
+
+  /* Flexbox columns — Bootstrap 5 compatible */
+  .row      { display: flex !important; flex-wrap: wrap !important; }
+  .col-12   { flex: 0 0 100%     !important; max-width: 100%     !important; }
+  .col-lg-4 { flex: 0 0 33.333% !important; max-width: 33.333% !important; }
+  .col-lg-5 { flex: 0 0 41.667% !important; max-width: 41.667% !important; }
+  .col-lg-7 { flex: 0 0 58.333% !important; max-width: 58.333% !important; }
+  .col-lg-8 { flex: 0 0 66.667% !important; max-width: 66.667% !important; }
+  .col-md-4 { flex: 0 0 33.333% !important; max-width: 33.333% !important; }
+  .col-6    { flex: 0 0 50%     !important; max-width: 50%     !important; }
+  .col-4    { flex: 0 0 33.333% !important; max-width: 33.333% !important; }
+
+  /* KPI grid */
+  .demo-kpi-grid  { grid-template-columns: repeat(4, 1fr) !important; gap: 0.5rem !important; margin-bottom: 0.5rem !important; }
+  .demo-kpi       { padding: 0.55rem 0.75rem !important; gap: 0.6rem !important; }
+  .demo-kpi-icon  { width: 34px !important; height: 34px !important; flex-shrink: 0; }
+  .demo-kpi-value { font-size: 1.2rem !important; }
+  .demo-kpi-sub   { font-size: 0.65rem !important; }
+
+  /* Row spacing */
+  .row.g-3, .row.g-2 { --bs-gutter-x: 0.5rem !important; --bs-gutter-y: 0.5rem !important; }
+  .mb-3, .mb-4 { margin-bottom: 0.5rem !important; }
+  .mb-2        { margin-bottom: 0.3rem !important; }
+
+  /* Chart cards */
+  .chart-card       { padding: 0.6rem !important; box-shadow: none !important; border: 1px solid #ddd !important; break-inside: avoid; }
+  .chart-card-title { font-size: 0.7rem !important; margin-bottom: 0.4rem !important; }
+
+  /* Chart wraps — compact fixed height so everything fits one page */
+  .chart-wrap, .chart-wrap--bar, .chart-wrap--donut, .chart-wrap--hbar {
+    height: 150px !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+  .chart-wrap img { width: 100% !important; height: 100% !important; object-fit: fill !important; display: block; }
+
+  /* Tables */
+  .table-sm td, .table-sm th { padding: 0.2rem 0.35rem !important; font-size: 0.7rem !important; }
+
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+}
+
+/* =============================================================================
+   Absenteeism Dashboard
+   ============================================================================= */
+
+.abs-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.6rem;
+  margin-bottom: 0.75rem;
+}
+@media (max-width: 991px) { .abs-kpi-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 575px)  { .abs-kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+
+.abs-kpi {
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid var(--color-border, #dee2e6);
+  box-shadow: var(--shadow-card);
+  padding: 0.7rem 0.9rem;
+  text-align: center;
+}
+.abs-kpi-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
+                 letter-spacing: 0.05em; color: var(--color-text-muted, #6c757d);
+                 margin-bottom: 0.2rem; line-height: 1.3; }
+.abs-kpi-value { font-size: 1.8rem; font-weight: 900; line-height: 1; }
+.abs-kpi-sub   { font-size: 0.65rem; color: var(--color-text-muted, #6c757d); margin-top: 0.15rem; }
+
+.compact-card  { background: #fff; border-radius: 10px; border: 1px solid var(--color-border, #dee2e6);
+                 box-shadow: var(--shadow-card); padding: 0.75rem 0.9rem;
+                 height: 100%; display: flex; flex-direction: column; }
+.compact-title { font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+                 letter-spacing: 0.07em; color: var(--color-text-muted, #6c757d);
+                 margin-bottom: 0.5rem; flex-shrink: 0; }
+.compact-card .chart-wrap      { flex: 1; min-height: 160px; position: relative; width: 100%; }
+.compact-card .table-responsive { flex: 1; overflow-y: auto; }

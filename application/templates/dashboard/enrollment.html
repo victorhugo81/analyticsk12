@@ -1,0 +1,318 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="row">
+  <div class="col-12">
+    <div class="main-card-box card my-4">
+
+      <div class="card-header p-0 position-relative mt-n4 mx-3 z-index-2">
+        <div class="bg-gradient-main shadow-dark border-radius-lg pt-4 pb-3 d-flex justify-content-between align-items-center flex-wrap">
+          <h2 class="text-white ps-3 mb-0">
+            <i class="material-symbols-rounded opacity-5">school</i> Enrollment Dashboard
+          </h2>
+          <a href="{{ url_for('routes.index') }}" class="btn btn-sm btn-outline-light no-print me-3 mb-0">
+            <i class="material-symbols-rounded icon-inline">arrow_back</i> Back to Home
+          </a>
+        </div>
+      </div>
+
+      <div class="card-body px-4 pb-5 pt-3">
+
+        <!-- Toolbar -->
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+          <p class="text-sm text-muted mb-0">Enrollment counts, year-over-year trends, and subgroup breakdown.</p>
+          <div class="d-flex gap-1 no-print">
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="printDashboard()">
+              <i class="material-symbols-rounded icon-inline">picture_as_pdf</i> Export
+            </button>
+          </div>
+        </div>
+
+        <!-- KPI Cards -->
+        <div class="demo-kpi-grid mb-4">
+          <a class="demo-kpi" href="{{ url_for('routes.students') }}">
+            <div class="demo-kpi-icon kpi-icon--info">
+              <i class="material-symbols-rounded">groups</i>
+            </div>
+            <div>
+              <div class="demo-kpi-label">Total Enrolled</div>
+              <div class="demo-kpi-value text-status-info">{{ total }}</div>
+              <div class="demo-kpi-sub">{{ yr_filter or 'All years' }}</div>
+            </div>
+          </a>
+
+          <div class="demo-kpi">
+            <div class="demo-kpi-icon" style="background:{{ '#dcfce7' if (yoy_change or 0) >= 0 else '#fee2e2' }};">
+              <i class="material-symbols-rounded" style="color:{{ '#15803d' if (yoy_change or 0) >= 0 else '#b91c1c' }};">
+                {{ 'trending_up' if (yoy_change or 0) >= 0 else 'trending_down' }}
+              </i>
+            </div>
+            <div>
+              <div class="demo-kpi-label">YoY Change</div>
+              <div class="demo-kpi-value" style="color:{{ '#15803d' if (yoy_change or 0) >= 0 else '#b91c1c' }};">
+                {% if yoy_change is not none %}
+                  {{ '+' if yoy_change >= 0 else '' }}{{ yoy_change }}
+                {% else %}—{% endif %}
+              </div>
+              <div class="demo-kpi-sub">
+                {% if yoy_change_pct is not none %}{{ '+' if yoy_change_pct >= 0 else '' }}{{ yoy_change_pct }}% vs prior year{% else %}No prior year data{% endif %}
+              </div>
+            </div>
+          </div>
+
+          <div class="demo-kpi">
+            <div class="demo-kpi-icon" style="background:#fef9c3;">
+              <i class="material-symbols-rounded" style="color:#854d0e;">people</i>
+            </div>
+            <div>
+              <div class="demo-kpi-label">Teacher : Student Ratio</div>
+              <div class="demo-kpi-value" style="color:#854d0e;">{{ teacher_ratio }}</div>
+              <div class="demo-kpi-sub">Active teachers</div>
+            </div>
+          </div>
+
+          <a class="demo-kpi" href="{{ url_for('routes.students', english_status='EL') }}">
+            <div class="demo-kpi-icon" style="background:#ede9fe;">
+              <i class="material-symbols-rounded" style="color:#6d28d9;">translate</i>
+            </div>
+            <div>
+              <div class="demo-kpi-label">English Learners</div>
+              <div class="demo-kpi-value" style="color:#6d28d9;">{{ el_count }}</div>
+              <div class="demo-kpi-sub">{{ ((el_count / total * 100) | round(1)) if total else 0 }}% of enrollment</div>
+            </div>
+          </a>
+        </div>
+
+        <!-- Row 2: YoY Trend + Ethnicity -->
+        <div class="row g-2 mb-2 align-items-stretch">
+          <div class="col-12 col-lg-8 d-flex">
+            <div class="compact-card w-100">
+              <div class="compact-title">Enrollment by School Year</div>
+              <div class="chart-wrap">
+                <canvas id="chart-yoy"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="col-12 col-lg-4 d-flex">
+            <div class="compact-card w-100">
+              <div class="compact-title">Enrollment by Ethnicity</div>
+              <div class="table-responsive" style="max-height:340px;">
+                <table class="table table-sm align-middle mb-0" style="font-size:0.75rem;">
+                  <thead>
+                    <tr>
+                      <th class="text-xs text-muted fw-bold py-1">Ethnicity</th>
+                      <th class="text-xs text-muted fw-bold text-center py-1">Students</th>
+                      <th class="text-xs text-muted fw-bold text-center py-1">%</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for label, cnt, p in ethnicity_table_data %}
+                    <tr>
+                      <td class="py-1">{{ label }}</td>
+                      <td class="text-center fw-bold py-1">{{ cnt }}</td>
+                      <td class="text-center text-muted py-1">{{ p }}%</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 3: Grade + Site + Subgroups -->
+        <div class="row g-2 mb-2 align-items-stretch">
+          <div class="col-12 col-lg-4 d-flex">
+            <div class="compact-card w-100">
+              <div class="compact-title">Enrollment by Grade</div>
+              <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0" style="font-size:0.75rem;">
+                  <thead>
+                    <tr>
+                      <th class="text-xs text-muted fw-bold py-1">Grade</th>
+                      <th class="text-xs text-muted fw-bold text-center py-1">Students</th>
+                      <th class="text-xs text-muted fw-bold text-center py-1">Trend</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for grade, cnt, change in grade_table_data %}
+                    <tr>
+                      <td class="py-1">{{ grade }}</td>
+                      <td class="text-center fw-bold py-1">{{ cnt }}</td>
+                      <td class="text-center py-1">
+                        {% if change > 0 %}
+                          <span class="text-success fw-bold" style="font-size:0.7rem;">
+                            <i class="material-symbols-rounded icon-inline-sm">arrow_upward</i>+{{ change }}
+                          </span>
+                        {% elif change < 0 %}
+                          <span class="text-danger fw-bold" style="font-size:0.7rem;">
+                            <i class="material-symbols-rounded icon-inline-sm">arrow_downward</i>{{ change }}
+                          </span>
+                        {% else %}
+                          <span class="text-muted" style="font-size:0.7rem;">—</span>
+                        {% endif %}
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div class="col-12 col-lg-4 d-flex">
+            <div class="compact-card w-100">
+              <div class="compact-title">Enrollment by Site</div>
+              <div class="table-responsive" style="max-height:360px;">
+                <table class="table table-sm align-middle mb-0" style="font-size:0.75rem;">
+                  <thead>
+                    <tr>
+                      <th class="text-xs text-muted fw-bold py-1">Site</th>
+                      <th class="text-xs text-muted fw-bold text-center py-1">Students</th>
+                      <th class="text-xs text-muted fw-bold text-center py-1">Trend</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for acronym, cnt, change in site_table_data %}
+                    <tr>
+                      <td class="py-1">{{ acronym }}</td>
+                      <td class="text-center fw-bold py-1">{{ cnt }}</td>
+                      <td class="text-center py-1">
+                        {% if change > 0 %}
+                          <span class="text-success fw-bold" style="font-size:0.7rem;">
+                            <i class="material-symbols-rounded icon-inline-sm">arrow_upward</i>+{{ change }}
+                          </span>
+                        {% elif change < 0 %}
+                          <span class="text-danger fw-bold" style="font-size:0.7rem;">
+                            <i class="material-symbols-rounded icon-inline-sm">arrow_downward</i>{{ change }}
+                          </span>
+                        {% else %}
+                          <span class="text-muted" style="font-size:0.7rem;">—</span>
+                        {% endif %}
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div class="col-12 col-lg-4 d-flex">
+            <div class="compact-card w-100">
+              <div class="compact-title">Subgroup Breakdown</div>
+              <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0" style="font-size:0.75rem;">
+                  <thead>
+                    <tr>
+                      <th class="text-xs text-muted fw-bold py-1">Subgroup</th>
+                      <th class="text-xs text-muted fw-bold text-center py-1">Students</th>
+                      <th class="text-xs text-muted fw-bold text-center py-1">%</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for name, cnt, p in subgroup_data %}
+                    <tr>
+                      <td class="py-1">{{ name }}</td>
+                      <td class="text-center fw-bold py-1">{{ cnt }}</td>
+                      <td class="text-center py-1">
+                        <span class="badge {{ 'bg-warning text-dark' if p >= 20 else 'bg-secondary' }}">{{ p }}%</span>
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/plugins/chartjs.min.js') }}"></script>
+<script>
+(function () {
+  const yoyLabels = {{ yoy_labels | tojson }};
+  const yoyCounts = {{ yoy_counts | tojson }};
+
+  const yoyDeltas = yoyCounts.map((v, i) => i === 0 ? null : v - yoyCounts[i - 1]);
+  const yoyDeltaPcts = yoyCounts.map((v, i) => {
+    if (i === 0 || yoyCounts[i - 1] === 0) return null;
+    return Math.round((v - yoyCounts[i - 1]) / yoyCounts[i - 1] * 1000) / 10;
+  });
+
+  const pointLabels = {
+    id: 'pointLabels',
+    afterDatasetsDraw(chart) {
+      const { ctx } = chart;
+      const meta = chart.getDatasetMeta(0);
+      meta.data.forEach((point, i) => {
+        const val = yoyCounts[i];
+        const d = yoyDeltas[i];
+        const p = yoyDeltaPcts[i];
+        ctx.save();
+        ctx.font = 'bold 11px sans-serif';
+        ctx.fillStyle = '#1d4ed8';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(val, point.x, point.y - 8);
+        if (d !== null) {
+          const sign = d >= 0 ? '+' : '';
+          const color = d >= 0 ? '#15803d' : '#b91c1c';
+          ctx.font = '10px sans-serif';
+          ctx.fillStyle = color;
+          ctx.fillText(sign + d + ' (' + sign + p + '%)', point.x, point.y - 20);
+        }
+        ctx.restore();
+      });
+    }
+  };
+
+  new Chart(document.getElementById('chart-yoy'), {
+    type: 'line',
+    plugins: [pointLabels],
+    data: {
+      labels: yoyLabels,
+      datasets: [{
+        label: 'Enrolled',
+        data: yoyCounts,
+        borderColor: '#1d4ed8',
+        backgroundColor: 'rgba(29,78,216,0.08)',
+        borderWidth: 2,
+        pointRadius: 5,
+        fill: true,
+        tension: 0.3,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      layout: { padding: { top: 36 } },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: function(ctx) {
+              const i = ctx.dataIndex;
+              const lines = ['Enrolled: ' + ctx.parsed.y];
+              const d = yoyDeltas[i];
+              const p = yoyDeltaPcts[i];
+              if (d !== null) {
+                const sign = d >= 0 ? '+' : '';
+                lines.push('YoY: ' + sign + d + ' (' + sign + p + '%)');
+              }
+              return lines;
+            }
+          }
+        }
+      },
+      scales: {
+        y: { beginAtZero: false, ticks: { font: { size: 11 } } },
+        x: { ticks: { font: { size: 11 } } }
+      }
+    }
+  });
+})();
+</script>
+
+{% endblock %}

@@ -1,0 +1,152 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  .ssid-link:hover { color: var(--bs-main-color-primary, #1d4ed8) !important; }
+</style>
+
+<div class="row">
+  <div class="col-12">
+    <div class="main-card-box card my-4">
+      <div class="card-header p-0 position-relative mt-n4 mx-3 z-index-2">
+        <div class="bg-gradient-main custom-title-card">
+          <h2 class="text-white text-capitalize ps-3">
+            <i class="material-symbols-rounded opacity-5">report</i> {{ current_page_name }}
+          </h2>
+        </div>
+      </div>
+      <div class="card-body px-4 pb-4">
+        <br>
+
+        <!-- Search box -->
+        <div class="search-content-box mb-4">
+          <div class="row justify-content-between">
+            <div class="col">
+              <form method="get" class="d-flex">
+                <input type="hidden" name="site_filter" value="{{ site_filter }}">
+                <input type="hidden" name="type_filter" value="{{ type_filter }}">
+                <input type="hidden" name="schoolyr"    value="{{ yr_filter }}">
+                <input type="text" name="search" class="search-field-box form-control"
+                       placeholder="Search by SSID, incident ID or infraction"
+                       value="{{ request.args.get('search', '') }}">
+                <button type="submit" class="btn bg-gradient-main search-button-box shadow-dark">Search</button>
+                <a href="{{ url_for('routes.incidents') }}" type="button" class="btn reset-button-box shadow-dark">Reset</a>
+              </form>
+            </div>
+          </div>
+
+          <div class="row justify-content-between">
+            <div class="col mb-4">
+              <label class="filter-labels text-sm mb-0">Filter By Site</label>
+              <form method="get" class="d-flex">
+                <input type="hidden" name="search"      value="{{ request.args.get('search', '') }}">
+                <input type="hidden" name="type_filter" value="{{ type_filter }}">
+                <input type="hidden" name="schoolyr"    value="{{ yr_filter }}">
+                <select name="site_filter" class="form-select-box form-select" onchange="this.form.submit()">
+                  <option value="">All Sites</option>
+                  {% for s in sites %}
+                  <option value="{{ s }}" {% if site_filter == s %}selected{% endif %}>{{ s }}</option>
+                  {% endfor %}
+                </select>
+              </form>
+            </div>
+            <div class="col mb-4">
+              <label class="filter-labels text-sm mb-0">Filter By Type</label>
+              <form method="get" class="d-flex">
+                <input type="hidden" name="search"      value="{{ request.args.get('search', '') }}">
+                <input type="hidden" name="site_filter" value="{{ site_filter }}">
+                <input type="hidden" name="schoolyr"    value="{{ yr_filter }}">
+                <select name="type_filter" class="form-select-box form-select" onchange="this.form.submit()">
+                  <option value="">All Types</option>
+                  <option value="major" {% if type_filter == 'major' %}selected{% endif %}>Major</option>
+                  <option value="minor" {% if type_filter == 'minor' %}selected{% endif %}>Minor</option>
+                </select>
+              </form>
+            </div>
+          </div>
+        </div>
+        <!-- end search box -->
+
+        <div class="table-per-page-section mt-4">
+          <div class="row justify-content-between align-items-center">
+            <div class="col-4">
+              <form method="get" class="d-flex">
+                <label for="per_page">Items per page: </label>
+                <select name="per_page" id="per_page" class="per-page-drop" onchange="this.form.submit()">
+                  <option value="10" {% if per_page == 10 %}selected{% endif %}>10</option>
+                  <option value="25" {% if per_page == 25 %}selected{% endif %}>25</option>
+                  <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
+                </select>
+              </form>
+            </div>
+            <div class="col-auto text-end">
+              <span class="text-sm text-muted"><strong>{{ total }}</strong> incident{{ 's' if total != 1 else '' }} found</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="table-responsive">
+          <table class="table align-items-center mb-0 table-striped">
+            <thead>
+              <tr>
+                <th class="text-uppercase text-xxs font-weight-bolder">Incident ID</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">SSID</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Site</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Date</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Day</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Time</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Type</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Infraction</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Susp. Days</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for inc in incidents %}
+              <tr class="table-highlight-row">
+                <td><p class="text-xs font-weight-bolder mb-0"  style="color:#000 !important;">{{ inc.incident_id or '—' }}</p></td>
+                <td class="text-center">
+                  {% set sid = ssid_to_id.get(inc.sisid) %}
+                  {% if sid %}
+                  <a href="{{ url_for('routes.student_details', student_id=sid) }}"
+                     class="text-xs font-weight-bold text-dark text-decoration-none ssid-link">{{ inc.sisid }}</a>
+                  {% else %}
+                  <p class="text-xs font-weight-bold mb-0">{{ inc.sisid or '—' }}</p>
+                  {% endif %}
+                </td>
+                <td class="text-center"><span class="text-secondary text-xs font-weight-bold">{{ inc.site or '—' }}</span></td>
+                <td class="text-center"><p class="text-xs font-weight-bold mb-0">{{ inc.incident_date.strftime('%m/%d/%Y') if inc.incident_date else '—' }}</p></td>
+                <td class="text-center"><p class="text-xs mb-0">{{ inc.day_of_week or '—' }}</p></td>
+                <td class="text-center"><p class="text-xs mb-0">{{ inc.incident_time or '—' }}</p></td>
+                <td class="text-center">
+                  {% if inc.major %}
+                  <span class="badge badge-sm bg-danger">Major</span>
+                  {% elif inc.minor %}
+                  <span class="badge badge-sm bg-warning text-dark">Minor</span>
+                  {% else %}
+                  <span class="text-muted text-xs">—</span>
+                  {% endif %}
+                </td>
+                <td class="text-center">
+                  <p class="text-xs font-weight-bold mb-0">{{ inc.major or inc.minor or '—' }}</p>
+                </td>
+                <td class="text-center">
+                  <p class="text-xs font-weight-bold mb-0">
+                    {% if inc.suspended_days %}{{ inc.suspended_days }}{% else %}—{% endif %}
+                  </p>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <nav aria-label="Page navigation">
+          <ul class="pagination">{{ pagination.links }}</ul>
+        </nav>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

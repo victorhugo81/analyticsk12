@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+{% block content %}
+
+
+    <!-- main content card -->
+<div class="row">
+    <div class="col-12">
+        <div class="main-card-box card my-4">
+        <div class="card-header p-0 position-relative mt-n4 mx-3 z-index-2">
+          <div class="bg-gradient-main shadow-dark border-radius-lg pt-4 pb-3">
+            <h2 class="text-white text-capitalize ps-3">Edit Graduation Subject Area</h2>
+          </div>
+        <div class="card-body px-0 pb-2">
+            <br>
+            <div class="row">
+                <div class="col"></div>
+                <div class="col-md-auto"></div>
+    <!-- pause main content card -->
+
+    <!-- form -->
+    <div class="card-body align-items-center">
+        <div class="container-md align-items-center">
+<form method="POST" action="{{ url_for('routes.edit_graduation_requirement', req_id=requirement.id) }}">
+    {{ form.hidden_tag() }}
+    <div class="input-group input-group-outline my-3">
+<span aria-hidden="true" class="text-danger ms-1">*</span>
+    {{ form.subject_name.label (class="form-label") }}
+        {{ form.subject_name (class="form-control") }}
+    </div>
+    <div class="input-group input-group-outline my-3">
+<span aria-hidden="true" class="text-danger ms-1">*</span>
+    {{ form.credits_required.label (class="form-label") }}
+        {{ form.credits_required (class="form-control") }}
+    </div>
+    <div class="row">
+        <div class="col-6">
+            <div class="input-group input-group-outline my-3">
+                {{ form.start_grade.label (class="form-label") }}
+                {{ form.start_grade (class="form-control") }}
+            </div>
+        </div>
+        <div class="col-6">
+            <div class="input-group input-group-outline my-3">
+                {{ form.end_grade.label (class="form-label") }}
+                {{ form.end_grade (class="form-control") }}
+            </div>
+        </div>
+    </div>
+    <p class="text-xs text-muted ms-1">The grade span this subject is normally taken in — e.g. Algebra I is 9th&ndash;9th, Social Science is 10th&ndash;12th. Drives the Graduation Status dashboard's pacing so subjects aren't expected before they're due.</p>
+
+    <div class="input-group input-group-outline my-3">
+    {{ form.departments.label (class="form-label") }}
+        {{ form.departments (class="form-control", placeholder="e.g. English") }}
+    </div>
+    <p class="text-xs text-muted ms-1">Comma-separated <code>Course.department</code> values that count toward this subject area. Leave blank if this row only uses name matching or is the catch-all.</p>
+
+    <div class="input-group input-group-outline my-3">
+    {{ form.name_keywords.label (class="form-label") }}
+        {{ form.name_keywords (class="form-control", placeholder="e.g. ALGEBRA I") }}
+    </div>
+    <p class="text-xs text-muted ms-1">Comma-separated keywords. If set, the course name must contain at least one to match this subject area.</p>
+
+    <div class="input-group input-group-outline my-3">
+    {{ form.name_exclude_keywords.label (class="form-label") }}
+        {{ form.name_exclude_keywords (class="form-control", placeholder="e.g. ALGEBRA II") }}
+    </div>
+    <p class="text-xs text-muted ms-1">Comma-separated keywords. If the course name contains any of these, it will NOT match this subject area.</p>
+
+    <div class="input-group input-group-outline my-3">
+    {{ form.sort_order.label (class="form-label") }}
+        {{ form.sort_order (class="form-control") }}
+    </div>
+    <p class="text-xs text-muted ms-1">Rows are matched in ascending order — put more specific rows (like "Algebra I") before broader ones (like "Mathematics").</p>
+
+    <div class="form-check form-switch my-3 ms-1">
+        {{ form.is_catch_all (class="form-check-input") }}
+        {{ form.is_catch_all.label (class="form-check-label") }}
+    </div>
+    <p class="text-xs text-muted ms-1">Any course matching no other row is bucketed here. Only one subject area should be marked as the catch-all.</p>
+
+    <div class="input-group input-group-outline justify-content-end gap-2">
+    {{ form.submit (class="btn bg-gradient-main")}}
+    <a type="button" class="btn reset-button-box shadow-dark" href="{{ url_for('routes.graduation_settings') }}">Back</a>
+</div>
+</form>
+</div>
+</div>
+<!-- End form -->
+
+<!-- continue main content card -->
+</div>
+</div>
+</div>
+</div>
+<!-- End main content card -->
+
+{% endblock %}

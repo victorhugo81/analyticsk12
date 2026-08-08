@@ -1,0 +1,223 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="row">
+  <div class="col-12">
+    <div class="main-card-box card my-4">
+
+      <div class="card-header p-0 position-relative mt-n4 mx-3 z-index-2">
+        <div class="bg-gradient-main shadow-dark border-radius-lg pt-4 pb-3 d-flex justify-content-between align-items-center flex-wrap">
+          <h2 class="text-white ps-3 mb-0">
+            <i class="material-symbols-rounded opacity-5">verified_user</i> CALPADS Compliance
+          </h2>
+          <a href="{{ url_for('routes.index') }}" class="btn btn-sm btn-outline-light no-print me-3 mb-0">
+            <i class="material-symbols-rounded icon-inline">arrow_back</i> Back to Home
+          </a>
+        </div>
+      </div>
+
+      <div class="card-body px-3 pb-4 pt-3">
+
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+          <p class="text-xs text-muted mb-0">
+            Data quality checks against CALPADS submission requirements for
+            <strong>{{ session.get('active_schoolyr', '—') }}</strong>.
+          </p>
+          <button type="button" id="toggleCleanChecks" class="btn btn-sm btn-outline-secondary">
+            <i class="material-symbols-rounded icon-inline-sm">visibility_off</i>
+            Hide Clean Checks
+          </button>
+        </div>
+
+        <!-- KPI Summary -->
+        <div class="row g-2 mb-4">
+          <div class="col-6 col-md-3">
+            <div class="compact-card text-center py-3">
+              <div class="fw-bold fs-4 text-dark">{{ total_students }}</div>
+              <div class="text-xs text-muted">Students Checked</div>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div id="kpiCriticalCard" class="compact-card text-center py-3" style="border-left:3px solid #dc2626;cursor:pointer;" title="Show only Critical Issues">
+              <div class="fw-bold fs-4 text-danger">{{ total_critical }}</div>
+              <div class="text-xs text-muted">Critical Issues</div>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div id="kpiWarningCard" class="compact-card text-center py-3" style="border-left:3px solid #ca8a04;cursor:pointer;" title="Show only Warnings">
+              <div class="fw-bold fs-4 text-warning">{{ total_warning }}</div>
+              <div class="text-xs text-muted">Warnings</div>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="compact-card text-center py-3" style="border-left:3px solid #16a34a;">
+              <div class="fw-bold fs-4 {{ 'text-success' if pct_clean == 100 else 'text-dark' }}">{{ pct_clean }}%</div>
+              <div class="text-xs text-muted">Records Clean</div>
+            </div>
+          </div>
+        </div>
+
+        {% set sections = [
+          ('identity',   'Identity & Demographics', 'SDEM', 'person'),
+          ('enrollment', 'Enrollment',               'CENR / SENR', 'login'),
+          ('programs',   'Program Flags',            'SPRG / SELA', 'assignment'),
+          ('attendance', 'Attendance',                'SIRS', 'event_busy'),
+        ] %}
+
+        {% for section_key, section_label, section_sub, section_icon in sections %}
+        <div class="mb-4">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="material-symbols-rounded text-muted" style="font-size:1rem;">{{ section_icon }}</i>
+            <span class="text-xs text-uppercase fw-bold text-muted">{{ section_label }}</span>
+            <span class="text-xxs text-muted">&mdash; {{ section_sub }}</span>
+          </div>
+
+          <div class="row g-2">
+            {% for chk in checks[section_key] %}
+            <div class="col-12 col-lg-6 calpads-check-card" data-count="{{ chk.count }}" data-severity="{{ chk.severity }}">
+              <div class="compact-card" style="border-left:3px solid {{ '#dc2626' if chk.severity == 'critical' else '#ca8a04' }};">
+
+                <!-- Check header -->
+                <div class="d-flex justify-content-between align-items-start mb-1">
+                  <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <span class="badge {{ 'bg-danger' if chk.severity == 'critical' else 'bg-warning text-dark' }}"
+                          style="font-size:0.6rem;">
+                      {{ 'Critical' if chk.severity == 'critical' else 'Warning' }}
+                    </span>
+                    <span class="fw-semibold text-dark" style="font-size:0.82rem;">{{ chk.label }}</span>
+                    <span class="text-xxs text-muted">{{ chk.submission }}</span>
+                  </div>
+                  <span class="fw-bold {{ 'text-danger' if chk.count > 0 and chk.severity == 'critical' else 'text-warning' if chk.count > 0 else 'text-success' }}"
+                        style="font-size:1.1rem;min-width:2rem;text-align:right;">
+                    {{ chk.count }}
+                  </span>
+                </div>
+
+                <p class="text-xs text-muted mb-2">{{ chk.desc }}</p>
+
+                {% if chk.count == 0 %}
+                <div class="text-success text-xs d-flex align-items-center gap-1">
+                  <i class="material-symbols-rounded" style="font-size:0.95rem;">check_circle</i> No issues found
+                </div>
+                {% else %}
+                <!-- Student table -->
+                <div class="table-responsive" style="max-height:220px;">
+                  <table class="table table-sm align-middle mb-0" style="font-size:0.7rem;">
+                    <thead class="sticky-top bg-white">
+                      <tr>
+                        <th class="text-muted fw-bold py-1">Student ID</th>
+                        <th class="text-muted fw-bold py-1 text-center">Name</th>
+                        <th class="text-muted fw-bold py-1 text-center">Gr.</th>
+                        <th class="text-muted fw-bold py-1 text-center">Site</th>
+                        {% if chk.id == 'invalid_gender' %}
+                        <th class="text-muted fw-bold py-1 text-center">Gender</th>
+                        {% endif %}
+                        {% if chk.id == 'invalid_ssid_format' %}
+                        <th class="text-muted fw-bold py-1 text-center">SSID</th>
+                        {% endif %}
+                        {% if chk.id == 'invalid_ethnicity' %}
+                        <th class="text-muted fw-bold py-1 text-center">Ethnicity</th>
+                        {% endif %}
+                        {% if chk.id == 'exit_before_enter' %}
+                        <th class="text-muted fw-bold py-1 text-center">Enter</th>
+                        <th class="text-muted fw-bold py-1 text-center">Exit</th>
+                        {% endif %}
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for s in chk.students[:20] %}
+                      <tr>
+                        <td class="py-1 text-muted">{{ s.student_id }}</td>
+                        <td class="py-1 text-center">{{ s.last_name }}, {{ s.first_name }}</td>
+                        <td class="py-1 text-center">{{ s.grade }}</td>
+                        <td class="py-1 text-center">{{ s.site.site_acronyms if s.site else '—' }}</td>
+                        {% if chk.id == 'invalid_gender' %}
+                        <td class="py-1 text-danger fw-bold text-center">{{ s.gender }}</td>
+                        {% endif %}
+                        {% if chk.id == 'invalid_ssid_format' %}
+                        <td class="py-1 text-danger fw-bold text-center">{{ s.ssid }}</td>
+                        {% endif %}
+                        {% if chk.id == 'invalid_ethnicity' %}
+                        <td class="py-1 text-danger fw-bold text-center">{{ s.ethnicity }}</td>
+                        {% endif %}
+                        {% if chk.id == 'exit_before_enter' %}
+                        <td class="py-1 text-center">{{ s.enter_date.strftime('%m/%d/%y') if s.enter_date else '—' }}</td>
+                        <td class="py-1 text-danger fw-bold text-center">{{ s.exit_date.strftime('%m/%d/%y') if s.exit_date else '—' }}</td>
+                        {% endif %}
+                        <td class="py-1 text-center">
+                          <a href="{{ url_for('routes.student_details', student_id=s.id) }}"
+                             class="text-muted" title="View student" style="font-size:0.8rem;">
+                            <i class="material-symbols-rounded icon-inline-sm">open_in_new</i>
+                          </a>
+                        </td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+                {% if chk.count > 20 %}
+                <div class="text-xs text-muted mt-1 d-flex align-items-center justify-content-between">
+                  <span>Showing 20 of {{ chk.count }} students.</span>
+                  {% if chk.students_url %}
+                  <a href="{{ chk.students_url }}" class="text-xs">View all &rarr;</a>
+                  {% endif %}
+                </div>
+                {% elif chk.students_url %}
+                <div class="text-xs mt-1">
+                  <a href="{{ chk.students_url }}" class="text-muted">View in Students list &rarr;</a>
+                </div>
+                {% endif %}
+                {% endif %}
+
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    var btn = document.getElementById('toggleCleanChecks');
+    var criticalCard = document.getElementById('kpiCriticalCard');
+    var warningCard = document.getElementById('kpiWarningCard');
+    var hideClean = false;
+    var severityFilter = null;
+
+    function applyFilters() {
+      document.querySelectorAll('.calpads-check-card').forEach(function (card) {
+        var cleanOk = !hideClean || card.dataset.count !== '0';
+        var severityOk = !severityFilter || card.dataset.severity === severityFilter;
+        card.style.display = (cleanOk && severityOk) ? '' : 'none';
+      });
+      criticalCard.style.outline = severityFilter === 'critical' ? '2px solid #dc2626' : '';
+      warningCard.style.outline = severityFilter === 'warning' ? '2px solid #ca8a04' : '';
+    }
+
+    btn.addEventListener('click', function () {
+      hideClean = !hideClean;
+      btn.innerHTML = hideClean
+        ? '<i class="material-symbols-rounded icon-inline-sm">visibility</i> Show Clean Checks'
+        : '<i class="material-symbols-rounded icon-inline-sm">visibility_off</i> Hide Clean Checks';
+      applyFilters();
+    });
+
+    criticalCard.addEventListener('click', function () {
+      severityFilter = severityFilter === 'critical' ? null : 'critical';
+      applyFilters();
+    });
+
+    warningCard.addEventListener('click', function () {
+      severityFilter = severityFilter === 'warning' ? null : 'warning';
+      applyFilters();
+    });
+  })();
+</script>
+
+{% endblock %}

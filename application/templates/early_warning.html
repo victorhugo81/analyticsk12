@@ -1,0 +1,255 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="row">
+  <div class="col-12">
+    <div class="main-card-box card my-4">
+
+      <div class="card-header p-0 position-relative mt-n4 mx-3 z-index-2">
+        <div class="bg-gradient-main shadow-dark border-radius-lg pt-4 pb-3 d-flex justify-content-between align-items-center flex-wrap">
+          <h2 class="text-white ps-3 mb-0">
+            <i class="material-symbols-rounded opacity-5">crisis_alert</i> Early Warning System
+          </h2>
+          <a href="{{ url_for('routes.index') }}" class="btn btn-sm btn-outline-light no-print me-3 mb-0">
+            <i class="material-symbols-rounded icon-inline">arrow_back</i> Back to Home
+          </a>
+        </div>
+      </div>
+
+      <div class="card-body px-4 pb-5 pt-3">
+
+        <!-- KPI Cards -->
+        <div class="demo-kpi-grid" style="grid-template-columns: repeat(4, 1fr);">
+
+          <a href="{{ url_for('routes.early_warning', grade_filter=grade_filter) }}"
+             class="demo-kpi text-decoration-none {% if not risk_filter %}demo-kpi-active{% endif %}"
+             style="cursor:pointer;">
+            <div class="demo-kpi-icon" style="background:#fde8e8;">
+              <i class="material-symbols-rounded" style="color:#dc2626;">group</i>
+            </div>
+            <div>
+              <div class="demo-kpi-label">Total Students</div>
+              <div class="demo-kpi-value">{{ total }}</div>
+              <div class="demo-kpi-sub">monitored</div>
+            </div>
+          </a>
+
+          <a href="{{ url_for('routes.early_warning', risk_filter='high', grade_filter=grade_filter) }}"
+             class="demo-kpi text-decoration-none {% if risk_filter == 'high' %}demo-kpi-active{% endif %}"
+             style="cursor:pointer;">
+            <div class="demo-kpi-icon" style="background:#fde8e8;">
+              <i class="material-symbols-rounded" style="color:#dc2626;">warning</i>
+            </div>
+            <div>
+              <div class="demo-kpi-label">High Risk</div>
+              <div class="demo-kpi-value" style="color:#dc2626;">{{ high_count }}</div>
+              <div class="demo-kpi-sub">2+ flags</div>
+            </div>
+          </a>
+
+          <a href="{{ url_for('routes.early_warning', risk_filter='medium', grade_filter=grade_filter) }}"
+             class="demo-kpi text-decoration-none {% if risk_filter == 'medium' %}demo-kpi-active{% endif %}"
+             style="cursor:pointer;">
+            <div class="demo-kpi-icon" style="background:#fff3cd;">
+              <i class="material-symbols-rounded" style="color:#d97706;">info</i>
+            </div>
+            <div>
+              <div class="demo-kpi-label">Medium Risk</div>
+              <div class="demo-kpi-value" style="color:#d97706;">{{ medium_count }}</div>
+              <div class="demo-kpi-sub">1 flag</div>
+            </div>
+          </a>
+
+          <a href="{{ url_for('routes.early_warning', risk_filter='chronic', grade_filter=grade_filter) }}"
+             class="demo-kpi text-decoration-none {% if risk_filter == 'chronic' %}demo-kpi-active{% endif %}"
+             style="cursor:pointer;">
+            <div class="demo-kpi-icon" style="background:#fff3cd;">
+              <i class="material-symbols-rounded" style="color:#b45309;">event_busy</i>
+            </div>
+            <div>
+              <div class="demo-kpi-label">Chronic Absenteeism</div>
+              <div class="demo-kpi-value" style="color:#b45309;">{{ chronic_count }}</div>
+              <div class="demo-kpi-sub">≥18 absences</div>
+            </div>
+          </a>
+
+        </div>
+
+        <!-- Flag legend -->
+        <div class="d-flex gap-3 mb-3 flex-wrap">
+          <span class="text-xs text-muted fw-bold text-uppercase">Flags:</span>
+          <span class="badge bg-danger bg-opacity-10 text-danger fw-semibold px-2 py-1" style="font-size:0.72rem;">
+            <i class="material-symbols-rounded icon-inline-sm">event_busy</i> Attendance ≥10 absences
+          </span>
+          <span class="badge bg-warning bg-opacity-10 text-warning fw-semibold px-2 py-1" style="font-size:0.72rem;color:#92400e!important;">
+            <i class="material-symbols-rounded icon-inline-sm">gavel</i> Behavior ≥3 incidents
+          </span>
+          <span class="badge bg-primary bg-opacity-10 text-primary fw-semibold px-2 py-1" style="font-size:0.72rem;">
+            <i class="material-symbols-rounded icon-inline-sm">grade</i> Grades with F
+          </span>
+        </div>
+        <p class="text-xs text-muted mb-3">
+          <strong>Risk Score</strong> is a weighted 0&ndash;100 composite &mdash; Attendance 40% + Academic 40% (F-grade count) + Behavior 20% (incident count) &mdash;
+          not just a count of tripped flags, so a student with 40 absences ranks higher than one with 10. High &ge;67, Medium 34&ndash;66, On Track &lt;34.
+          Sorted highest-risk first.
+        </p>
+
+        <!-- Filters -->
+        <form method="get" class="row g-3 align-items-end mb-3">
+          <input type="hidden" name="risk_filter" value="{{ risk_filter }}">
+          <div class="col-12">
+            <label class="filter-labels text-sm mb-0">Filter By Grade</label>
+            <select name="grade_filter" class="form-select-box form-select w-100" onchange="this.form.submit()">
+              <option value="">All Grades</option>
+              {% for g in grades %}
+              <option value="{{ g }}" {% if grade_filter == g %}selected{% endif %}>{{ g }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          {% if risk_filter or grade_filter %}
+          <div class="col-auto">
+            <a href="{{ url_for('routes.early_warning') }}" class="btn btn-sm btn-outline-danger">
+              <i class="material-symbols-rounded icon-inline-sm">close</i> Clear
+            </a>
+          </div>
+          {% endif %}
+        </form>
+
+        <!-- Per-page + count -->
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <span class="text-sm text-muted"><span class="fw-bold text-dark">{{ total }}</span> student{{ 's' if total != 1 else '' }} found</span>
+          <form method="get" class="d-flex align-items-center gap-2">
+            <input type="hidden" name="risk_filter"  value="{{ risk_filter }}">
+            <input type="hidden" name="grade_filter" value="{{ grade_filter }}">
+            <label class="text-sm mb-0">Per page:</label>
+            <select name="per_page" class="per-page-drop" onchange="this.form.submit()">
+              <option value="10" {% if per_page == 10 %}selected{% endif %}>10</option>
+              <option value="25" {% if per_page == 25 %}selected{% endif %}>25</option>
+              <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
+            </select>
+          </form>
+        </div>
+
+        <!-- Table -->
+        <div class="table-responsive">
+          <table class="table align-items-center mb-0 table-striped">
+            <thead>
+              <tr>
+                <th class="text-uppercase text-xxs font-weight-bolder">Student</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">ID</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Gr</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Site</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Att</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Beh</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Grd</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Absences</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Incidents</th>
+                <th class="text-uppercase text-xxs font-weight-bolder">Risk Score</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Support</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in ews_rows %}
+              {% set s = row.student %}
+              <tr>
+                <td>
+                  <a href="{{ url_for('routes.student_details', student_id=s.id) }}"
+                     class="text-dark fw-bold text-sm">
+                    {{ s.last_name }}, {{ s.first_name }}
+                  </a>
+                </td>
+                <td class="text-sm text-muted text-center">{{ s.student_id }}</td>
+                <td class="text-sm text-center">{{ s.grade }}</td>
+                <td class="text-sm text-muted text-center">{{ row.site_name }}</td>
+                <td class="text-center">
+                  {% if row.att_flag %}
+                  <span title="Attendance flag" style="color:#dc2626;">
+                    <i class="material-symbols-rounded" style="font-size:1.1rem;vertical-align:middle;">event_busy</i>
+                  </span>
+                  {% else %}
+                  <span class="text-muted" style="font-size:0.8rem;">—</span>
+                  {% endif %}
+                </td>
+                <td class="text-center">
+                  {% if row.beh_flag %}
+                  <span title="Behavior flag" style="color:#d97706;">
+                    <i class="material-symbols-rounded" style="font-size:1.1rem;vertical-align:middle;">gavel</i>
+                  </span>
+                  {% else %}
+                  <span class="text-muted" style="font-size:0.8rem;">—</span>
+                  {% endif %}
+                </td>
+                <td class="text-center">
+                  {% if row.grd_flag %}
+                  <span title="Grade flag: F in at least one course" class="text-status-info">
+                    <i class="material-symbols-rounded" style="font-size:1.1rem;vertical-align:middle;">grade</i>
+                  </span>
+                  {% else %}
+                  <span class="text-muted" style="font-size:0.8rem;">—</span>
+                  {% endif %}
+                </td>
+                <td class="text-center text-sm {% if row.att_flag %}text-danger fw-bold{% endif %}">
+                  {{ row.absences }}
+                </td>
+                <td class="text-center text-sm {% if row.beh_flag %}text-warning fw-bold{% endif %}">
+                  {{ row.incidents }}
+                </td>
+                <td style="min-width:150px;">
+                  <div class="d-flex align-items-center gap-2">
+                    <div class="progress flex-grow-1" style="height:8px;">
+                      <div class="progress-bar {{ 'bg-danger' if row.risk == 'high' else 'bg-warning' if row.risk == 'medium' else 'bg-success' }}"
+                           role="progressbar" style="width: {{ row.risk_score }}%;"
+                           aria-valuenow="{{ row.risk_score }}" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                    <span class="text-xs fw-bold" style="min-width:2rem;">{{ row.risk_score }}</span>
+                  </div>
+                  {% if row.risk == 'high' %}
+                  <span class="badge bg-danger mt-1 badge-sm">High</span>
+                  {% elif row.risk == 'medium' %}
+                  <span class="badge bg-warning text-dark mt-1 badge-sm">Medium</span>
+                  {% else %}
+                  <span class="badge bg-success mt-1 badge-sm">On Track</span>
+                  {% endif %}
+                </td>
+                <td class="text-center">
+                  {% if row.open_interventions %}
+                  <a href="{{ url_for('routes.student_details', student_id=s.id) }}#pane-interventions"
+                     class="badge bg-info text-dark text-decoration-none badge-sm"
+                     title="{{ row.open_interventions }} active intervention{{ 's' if row.open_interventions != 1 else '' }}">
+                    <i class="material-symbols-rounded icon-inline-sm">support</i> {{ row.open_interventions }}
+                  </a>
+                  {% else %}
+                  <a href="{{ url_for('routes.add_intervention', student_id=s.id) }}"
+                     class="btn btn-sm btn-outline-secondary" style="font-size:0.65rem;padding:0.15rem 0.5rem;">
+                    <i class="material-symbols-rounded icon-inline-sm">add</i> Add
+                  </a>
+                  {% endif %}
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="11" class="text-center text-muted py-4">No student data found for the selected filters.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <nav aria-label="Page navigation">
+          <ul class="pagination">
+            {{ pagination.links }}
+          </ul>
+        </nav>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.demo-kpi { transition: box-shadow 0.15s, outline 0.15s; }
+.demo-kpi:hover { box-shadow: 0 0 0 2px #94a3b8; }
+.demo-kpi-active { outline: 2px solid var(--color-main, #1e40af); box-shadow: 0 2px 8px rgba(30,64,175,0.12); }
+</style>
+
+{% endblock %}

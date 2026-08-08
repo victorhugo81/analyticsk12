@@ -1,0 +1,63 @@
+{# Reusable "accountability rate" indicator card — big % + status badge + YoY change + by-site
+   table. Used by the Chronic Absenteeism Rate (Absenteeism dashboard) and Suspension Rate
+   (Discipline dashboard) indicators. Status/change are pre-computed dicts from _rate_status()/
+   _rate_change() in routes.py — this macro only renders them, no band logic lives here. #}
+{% macro rate_indicator_card(title, description, indicator_yr, pct, count, total, status, change, site_rows) %}
+<div class="compact-card mb-2">
+  <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+    <div>
+      <div class="compact-title mb-0">{{ title }} <span class="text-xs text-muted fw-normal">&mdash; {{ indicator_yr or '—' }}</span></div>
+      <p class="text-xs text-muted mb-0" style="max-width:520px;">{{ description }}</p>
+    </div>
+    {% if status %}
+    <div class="d-flex align-items-center gap-2">
+      <span class="badge" style="background:{{ status.color }};font-size:0.72rem;">{{ status.label }}</span>
+      {% if change.direction %}
+      <span class="text-xs fw-bold {{ 'text-danger' if change.direction == 'increased' else 'text-success' if change.direction == 'declined' else 'text-muted' }}">
+        {% if change.direction == 'increased' %}&#9650;{% elif change.direction == 'declined' %}&#9660;{% else %}&#9644;{% endif %}
+        {{ change.label }}{% if change.delta is not none %} ({{ change.delta | abs }} pts){% endif %}
+      </span>
+      {% else %}
+      <span class="text-xs text-muted">{{ change.label }}</span>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  {% if pct is not none %}
+  <div class="d-flex align-items-baseline gap-2 mb-3">
+    <span class="fw-bold" style="font-size:2rem;color:{{ status.color if status else '#374151' }};">{{ pct }}%</span>
+    <span class="text-sm text-muted">{{ count }} of {{ total }} students district-wide</span>
+  </div>
+
+  {% if site_rows %}
+  <div class="table-responsive">
+    <table class="table table-sm table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th class="text-xs text-uppercase text-muted fw-bold">Site</th>
+          <th class="text-xs text-uppercase text-muted fw-bold text-center">Rate</th>
+          <th class="text-xs text-uppercase text-muted fw-bold text-center">Status</th>
+          <th class="text-xs text-uppercase text-muted fw-bold text-center">Count / Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in site_rows %}
+        <tr>
+          <td class="text-sm">{{ row.site_name }}</td>
+          <td class="text-center fw-bold">{{ row.pct }}%</td>
+          <td class="text-center">
+            <span class="badge" style="font-size:0.62rem;background:{{ row.status.color }};">{{ row.status.label }}</span>
+          </td>
+          <td class="text-center text-muted">{{ row.count }} / {{ row.total }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+  {% else %}
+  <p class="text-sm text-muted mb-0">No data available for this school year.</p>
+  {% endif %}
+</div>
+{% endmacro %}

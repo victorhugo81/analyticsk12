@@ -1,0 +1,195 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="dashboard-page">
+
+  <!-- Intro — answers what this is, who it's for, and gives a sense of "home" without a card wrapper -->
+  <div class="dashboard-page-header">
+    <h2>Welcome back, {{ current_user.first_name | capitalize }}</h2>
+    <p>AnalyticsK12 brings your district's attendance, discipline, grades, and graduation data into one place. Pick a dashboard below to get started.</p>
+  </div>
+
+  <!-- ── Row 1: Student Data ── -->
+  <p class="dashboard-section-label">Student Data</p>
+  <div class="dashboard-grid mb-4">
+
+    {% if not org or org.show_demographics %}
+    <a href="/demographics" class="dash-card dash-card--primary">
+    {% else %}
+    <div class="dash-card dash-card--primary dash-card--disabled" aria-disabled="true">
+    {% endif %}
+      <div class="dash-card-body">
+        <div class="dash-card-icon"><i class="material-symbols-rounded">groups</i></div>
+        <div class="dash-card-title">Demographics</div>
+        <div class="dash-card-desc">Student population and subgroup breakdowns across your district.</div>
+        {% if not org or org.show_demographics %}<span class="dash-card-link">View dashboard <i class="material-symbols-rounded">arrow_forward</i></span>{% endif %}
+      </div>
+    {% if not org or org.show_demographics %}</a>{% else %}</div>{% endif %}
+
+    {% if not org or org.show_absenteeism %}
+    <a href="/absenteeism" class="dash-card dash-card--warning">
+    {% else %}
+    <div class="dash-card dash-card--warning dash-card--disabled" aria-disabled="true">
+    {% endif %}
+      <div class="dash-card-body">
+        <div class="dash-card-icon"><i class="material-symbols-rounded">event_available</i></div>
+        <div class="dash-card-title">Absenteeism</div>
+        <div class="dash-card-desc">Attendance patterns and chronic absenteeism by site and grade.</div>
+        {% if not org or org.show_absenteeism %}<span class="dash-card-link">View dashboard <i class="material-symbols-rounded">arrow_forward</i></span>{% endif %}
+      </div>
+    {% if not org or org.show_absenteeism %}</a>{% else %}</div>{% endif %}
+
+    {% if not org or org.show_discipline %}
+    <a href="/discipline" class="dash-card dash-card--critical">
+    {% else %}
+    <div class="dash-card dash-card--critical dash-card--disabled" aria-disabled="true">
+    {% endif %}
+      <div class="dash-card-body">
+        <div class="dash-card-icon"><i class="material-symbols-rounded">gavel</i></div>
+        <div class="dash-card-title">Discipline</div>
+        <div class="dash-card-desc">Behavior incidents, suspension data, and disciplinary trends.</div>
+        {% if not org or org.show_discipline %}<span class="dash-card-link">View dashboard <i class="material-symbols-rounded">arrow_forward</i></span>{% endif %}
+      </div>
+    {% if not org or org.show_discipline %}</a>{% else %}</div>{% endif %}
+
+    {% if not org or org.show_swd %}
+    <a href="/swd" class="dash-card dash-card--info">
+    {% else %}
+    <div class="dash-card dash-card--info dash-card--disabled" aria-disabled="true">
+    {% endif %}
+      <div class="dash-card-body">
+        <div class="dash-card-icon"><i class="material-symbols-rounded">accessibility_new</i></div>
+        <div class="dash-card-title">Students with Disabilities</div>
+        <div class="dash-card-desc">IEP status, service tracking, and SWD population metrics.</div>
+        {% if not org or org.show_swd %}<span class="dash-card-link">View dashboard <i class="material-symbols-rounded">arrow_forward</i></span>{% endif %}
+      </div>
+    {% if not org or org.show_swd %}</a>{% else %}</div>{% endif %}
+
+    {% if not org or org.show_el_progress %}
+    <a href="{{ url_for('routes.el_progress_dashboard') }}" class="dash-card dash-card--info">
+    {% else %}
+    <div class="dash-card dash-card--info dash-card--disabled" aria-disabled="true">
+    {% endif %}
+      <div class="dash-card-body">
+        <div class="dash-card-icon"><i class="material-symbols-rounded">translate</i></div>
+        <div class="dash-card-title">EL Progress</div>
+        <div class="dash-card-desc">English Learner status, reclassification rate, and support signals.</div>
+        {% if not org or org.show_el_progress %}<span class="dash-card-link">View dashboard <i class="material-symbols-rounded">arrow_forward</i></span>{% endif %}
+      </div>
+    {% if not org or org.show_el_progress %}</a>{% else %}</div>{% endif %}
+
+  </div>
+
+  <!-- ── Row 2: Enrollment & Attendance ── -->
+  <p class="dashboard-section-label">Enrollment &amp; Attendance</p>
+  <div class="dashboard-grid mb-4">
+
+    {% if not org or org.show_registration %}
+    <a href="/registration" class="dash-card dash-card--primary">
+    {% else %}
+    <div class="dash-card dash-card--primary dash-card--disabled" aria-disabled="true">
+    {% endif %}
+      <div class="dash-card-body">
+        <div class="dash-card-icon"><i class="material-symbols-rounded">how_to_reg</i></div>
+        <div class="dash-card-title">Registration</div>
+        <div class="dash-card-desc">Online registration progress, completion rates, and family outreach.</div>
+        {% if not org or org.show_registration %}<span class="dash-card-link">View dashboard <i class="material-symbols-rounded">arrow_forward</i></span>{% endif %}
+      </div>
+    {% if not org or org.show_registration %}</a>{% else %}</div>{% endif %}
+
+    <!-- Not a single anchor wrapper like the other cards — this one has four
+         distinct destinations (overview + 3 grade bands), so the card is a
+         plain container and each link is its own anchor. -->
+    <div class="dash-card dash-card--primary{{ ' dash-card--disabled' if org and not org.show_enrollment else '' }}"
+         {{ 'aria-disabled="true"' if org and not org.show_enrollment else '' }}>
+      <div class="dash-card-body">
+        <div class="dash-card-icon"><i class="material-symbols-rounded">school</i></div>
+        <div class="dash-card-title">Enrollment</div>
+        <div class="dash-card-desc">Enrollment counts, year-over-year trends, and projection comparisons.</div>
+        {% if not org or org.show_enrollment %}
+        <a href="/enrollment" class="dash-card-link">View dashboard <i class="material-symbols-rounded">arrow_forward</i></a>
+        <div class="dash-card-sublinks">
+          <a href="{{ url_for('routes.enrollment_k6') }}">K&ndash;6</a>
+          <a href="{{ url_for('routes.enrollment_ms') }}">Middle School</a>
+          <a href="{{ url_for('routes.enrollment_hs') }}">High School</a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if not org or org.show_attendance_rates %}
+    <a href="/attendance-rates" class="dash-card dash-card--warning">
+    {% else %}
+    <div class="dash-card dash-card--warning dash-card--disabled" aria-disabled="true">
+    {% endif %}
+      <div class="dash-card-body">
+        <div class="dash-card-icon"><i class="material-symbols-rounded">fact_check</i></div>
+        <div class="dash-card-title">Attendance Rates</div>
+        <div class="dash-card-desc">School attendance monitoring by site, teacher, and grade.</div>
+        {% if not org or org.show_attendance_rates %}<span class="dash-card-link">View dashboard <i class="material-symbols-rounded">arrow_forward</i></span>{% endif %}
+      </div>
+    {% if not org or org.show_attendance_rates %}</a>{% else %}</div>{% endif %}
+
+  </div>
+
+  <!-- ── Row 3: Student Outcomes ── -->
+  <p class="dashboard-section-label">Student Outcomes</p>
+  <div class="dashboard-grid">
+
+    {% if not org or org.show_early_warning %}
+    <a href="{{ url_for('routes.early_warning') }}" class="dash-card dash-card--critical">
+    {% else %}
+    <div class="dash-card dash-card--critical dash-card--disabled" aria-disabled="true">
+    {% endif %}
+      <div class="dash-card-body">
+        <div class="dash-card-icon"><i class="material-symbols-rounded">crisis_alert</i></div>
+        <div class="dash-card-title">Early Warning System</div>
+        <div class="dash-card-desc">Identify at-risk students from attendance, behavior, and grade signals.</div>
+        {% if not org or org.show_early_warning %}<span class="dash-card-link">View dashboard <i class="material-symbols-rounded">arrow_forward</i></span>{% endif %}
+      </div>
+    {% if not org or org.show_early_warning %}</a>{% else %}</div>{% endif %}
+
+    {% if not org or org.show_calpads %}
+    <a href="{{ url_for('routes.calpads_compliance') }}" class="dash-card dash-card--warning">
+    {% else %}
+    <div class="dash-card dash-card--warning dash-card--disabled" aria-disabled="true">
+    {% endif %}
+      <div class="dash-card-body">
+        <div class="dash-card-icon"><i class="material-symbols-rounded">verified_user</i></div>
+        <div class="dash-card-title">CALPADS Compliance</div>
+        <div class="dash-card-desc">Data quality checks against CALPADS submission requirements.</div>
+        {% if not org or org.show_calpads %}<span class="dash-card-link">View dashboard <i class="material-symbols-rounded">arrow_forward</i></span>{% endif %}
+      </div>
+    {% if not org or org.show_calpads %}</a>{% else %}</div>{% endif %}
+
+    {% if not org or org.show_graduation %}
+    <a href="{{ url_for('routes.graduation_status') }}" class="dash-card dash-card--good">
+    {% else %}
+    <div class="dash-card dash-card--good dash-card--disabled" aria-disabled="true">
+    {% endif %}
+      <div class="dash-card-body">
+        <div class="dash-card-icon"><i class="material-symbols-rounded">school</i></div>
+        <div class="dash-card-title">Graduation Status</div>
+        <div class="dash-card-desc">Track high school credits completed against graduation requirements.</div>
+        {% if not org or org.show_graduation %}<span class="dash-card-link">View dashboard <i class="material-symbols-rounded">arrow_forward</i></span>{% endif %}
+      </div>
+    {% if not org or org.show_graduation %}</a>{% else %}</div>{% endif %}
+
+    {% if not org or org.show_equity_gaps %}
+    <a href="{{ url_for('routes.equity_gaps_dashboard') }}" class="dash-card dash-card--info">
+    {% else %}
+    <div class="dash-card dash-card--info dash-card--disabled" aria-disabled="true">
+    {% endif %}
+      <div class="dash-card-body">
+        <div class="dash-card-icon"><i class="material-symbols-rounded">balance</i></div>
+        <div class="dash-card-title">Equity Gaps</div>
+        <div class="dash-card-desc">Attendance and suspension rate gaps between student groups and the district baseline.</div>
+        {% if not org or org.show_equity_gaps %}<span class="dash-card-link">View dashboard <i class="material-symbols-rounded">arrow_forward</i></span>{% endif %}
+      </div>
+    {% if not org or org.show_equity_gaps %}</a>{% else %}</div>{% endif %}
+
+  </div>
+
+</div>
+
+{% endblock %}

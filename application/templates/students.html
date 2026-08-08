@@ -1,0 +1,298 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="row">
+  <div class="col-12">
+    <div class="main-card-box card my-4">
+      <div class="card-header p-0 position-relative mt-n4 mx-3 z-index-2">
+        <div class="bg-gradient-main custom-title-card">
+          <h2 class="text-white text-capitalize ps-3">
+            <i class="material-symbols-rounded opacity-5">school</i> {{ current_page_name }}
+          </h2>
+        </div>
+      </div>
+      <div class="card-body px-4 pb-4">
+        <br>
+
+        <!-- Search box -->
+        <div class="search-content-box mb-4">
+          {% if subgroup_label %}
+          <div class="mb-3">
+            <span class="badge bg-gradient-main text-white px-3 py-2" style="font-size:0.8rem;">
+              <i class="material-symbols-rounded icon-inline-sm">filter_alt</i>
+              {{ subgroup_label }}
+              <a href="{{ url_for('routes.students', grade_filter=request.args.get('grade_filter','')) }}"
+                 class="text-white ms-2" style="text-decoration:none;" title="Clear filter">&times;</a>
+            </span>
+          </div>
+          {% endif %}
+
+          <div class="row justify-content-between">
+            <div class="col">
+              <form method="get" class="d-flex">
+                <input type="hidden" name="grade_filter" value="{{ request.args.get('grade_filter', '') }}">
+                {% for sg in subgroups %}<input type="hidden" name="subgroup" value="{{ sg }}">{% endfor %}
+                {% for es in english_status %}<input type="hidden" name="english_status" value="{{ es }}">{% endfor %}
+                {% for gf in gender_filters %}<input type="hidden" name="gender" value="{{ gf }}">{% endfor %}
+                <input type="text" name="search" class="search-field-box form-control" placeholder="Search by name or ID"
+                       value="{{ request.args.get('search', '') }}">
+                <button type="submit" class="btn bg-gradient-main search-button-box shadow-dark">Search</button>
+                <a href="{{ url_for('routes.students') }}" type="button" class="btn reset-button-box shadow-dark">Reset</a>
+              </form>
+            </div>
+          </div>
+
+          <div class="row justify-content-between">
+            <div class="col">
+              <label class="filter-labels text-sm mb-0">Filter By Site</label>
+              <select class="form-select-box form-select"
+                      onchange="window.location='/set_site_filter?sf='+encodeURIComponent(this.value)">
+                <option value="">All Sites</option>
+                {% for site in global_sites %}
+                <option value="{{ site.id }}" {% if active_site_filter == site.id|string %}selected{% endif %}>
+                  {{ site.site_name }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col mb-4">
+              <label class="filter-labels text-sm mb-0">Filter By Grade</label>
+              <form method="get" class="d-flex">
+                <input type="hidden" name="search" value="{{ request.args.get('search', '') }}">
+                {% for sg in subgroups %}<input type="hidden" name="subgroup" value="{{ sg }}">{% endfor %}
+                {% for es in english_status %}<input type="hidden" name="english_status" value="{{ es }}">{% endfor %}
+                {% for gf in gender_filters %}<input type="hidden" name="gender" value="{{ gf }}">{% endfor %}
+                <select name="grade_filter" class="form-select-box form-select" onchange="this.form.submit()">
+                  <option value="">All Grades</option>
+                  {% for grade in grades %}
+                  <option value="{{ grade }}" {% if request.args.get('grade_filter', '') == grade %}selected{% endif %}>
+                    {{ grade }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </form>
+            </div>
+          </div>
+        </div>
+        <!-- end search box -->
+
+        <!-- Demographic Filters -->
+        <div class="d-flex align-items-center justify-content-between px-2 py-2 mb-1 rounded"
+             style="cursor:pointer; background:#f8f9fa; border:1px solid var(--color-border,#dee2e6);"
+             data-bs-toggle="collapse" data-bs-target="#demographicFilters"
+             role="button" aria-expanded="{{ 'true' if subgroups or english_status or gender_filters else 'false' }}">
+          <div class="d-flex align-items-center gap-2">
+            <i class="material-symbols-rounded text-muted" style="font-size:1.05rem;vertical-align:middle;">tune</i>
+            <span class="text-sm fw-bold text-dark">Demographic Filters</span> 
+            
+              <span class="text-sm text-muted">|
+                <span class="fw-bold text-dark"> {{ total }}</span>
+                student{{ 's' if total != 1 else '' }} found |
+              </span>
+
+            {% if subgroups or english_status or gender_filters %}
+            <span class="badge bg-gradient-main">Active</span>
+            {% endif %}
+          </div>
+          <i class="material-symbols-rounded text-muted" style="font-size:1.1rem;">
+            {%- if subgroups or english_status or gender_filters %}expand_less{% else %}expand_more{% endif -%}
+          </i>
+        </div>
+
+        <div class="collapse {% if subgroups or english_status or gender_filters %}show{% endif %} mb-3" id="demographicFilters">
+          <div class="bg-white rounded-bottom p-3" style="border:1px solid var(--color-border,#dee2e6); border-top:none;">
+
+            <!-- Special Programs -->
+            <p class="text-xs text-uppercase text-muted fw-bold mb-2">Special Programs</p>
+            <div class="d-flex flex-wrap gap-2 mb-3">
+              {% for val, label in [('homeless','Homeless'),('frm','Free / Reduced Meal'),('swd','Students w/ Disability'),('foster','Foster Youth'),('migrant','Migrant'),('sed504','504 Plan')] %}
+              <input type="checkbox" class="btn-check" id="chk_{{ val }}" autocomplete="off"
+                     {% if val in subgroups %}checked{% endif %}
+                     onchange="applySubgroupFilter('{{ val }}', this.checked)">
+              <label class="btn btn-sm btn-outline-secondary rounded-pill" for="chk_{{ val }}">{{ label }}</label>
+              {% endfor %}
+            </div>
+
+            <!-- English Status -->
+            <p class="text-xs text-uppercase text-muted fw-bold mb-2">English Status</p>
+            <div class="d-flex flex-wrap gap-2 mb-3">
+              {% for val, label in [('EO','English Only'),('EL','English Learner'),('RFEP','RFEP'),('IFEP','IFEP'),('TBD','TBD')] %}
+              <input type="checkbox" class="btn-check" id="chk_el_{{ val }}" autocomplete="off"
+                     {% if val in english_status %}checked{% endif %}
+                     onchange="applyMultiFilter('english_status', '{{ val }}', this.checked)">
+              <label class="btn btn-sm btn-outline-secondary rounded-pill" for="chk_el_{{ val }}">{{ label }}</label>
+              {% endfor %}
+            </div>
+
+            <!-- Gender -->
+            <p class="text-xs text-uppercase text-muted fw-bold mb-2">Gender</p>
+            <div class="d-flex flex-wrap gap-2">
+              {% for val, label in [('M','Male'),('F','Female'),('X','Non-Binary'),('U','Unknown')] %}
+              <input type="checkbox" class="btn-check" id="chk_g_{{ val }}" autocomplete="off"
+                     {% if val in gender_filters %}checked{% endif %}
+                     onchange="applyMultiFilter('gender', '{{ val }}', this.checked)">
+              <label class="btn btn-sm btn-outline-secondary rounded-pill" for="chk_g_{{ val }}">{{ label }}</label>
+              {% endfor %}
+            </div>
+
+          </div>
+        </div>
+        <!-- end demographic filters -->
+
+        {% set any_filter = request.args.get('search') or request.args.get('grade_filter') or subgroups or english_status or gender_filters %}
+        {% if any_filter %}
+        <div class="mb-3">
+          <a href="{{ url_for('routes.students') }}" class="btn btn-sm btn-outline-danger">
+            <i class="material-symbols-rounded icon-inline-sm">close</i>
+            Clear Filters
+          </a>
+        </div>
+        {% endif %}
+
+        <div class="table-per-page-section mt-4">
+          <div class="row justify-content-between">
+            <div class="col-4">
+              <form method="get" class="d-flex">
+                <input type="hidden" name="search" value="{{ request.args.get('search', '') }}">
+                <input type="hidden" name="grade_filter" value="{{ request.args.get('grade_filter', '') }}">
+                {% for sg in subgroups %}<input type="hidden" name="subgroup" value="{{ sg }}">{% endfor %}
+                {% for es in english_status %}<input type="hidden" name="english_status" value="{{ es }}">{% endfor %}
+                {% for gf in gender_filters %}<input type="hidden" name="gender" value="{{ gf }}">{% endfor %}
+                <label for="per_page">Items per page: </label>
+                <select name="per_page" id="per_page" class="per-page-drop" onchange="this.form.submit()">
+                  <option value="10" {% if per_page == 10 %}selected{% endif %}>10</option>
+                  <option value="25" {% if per_page == 25 %}selected{% endif %}>25</option>
+                  <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
+                </select>
+              </form>
+            </div>
+            <div class="col-auto text-end d-flex gap-2 align-items-center">
+              <div class="dropdown no-print">
+                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                  <i class="material-symbols-rounded icon-inline-sm">download</i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                  <li>
+                    <a class="dropdown-item" href="#" onclick="exportCSV(); return false;">
+                      <i class="material-symbols-rounded me-1" style="font-size:0.9rem;vertical-align:middle;">table_view</i> CSV (all results)
+                    </a>
+                  </li>
+                  <li>
+                    <a class="dropdown-item" href="#" onclick="window.print(); return false;">
+                      <i class="material-symbols-rounded me-1" style="font-size:0.9rem;vertical-align:middle;">picture_as_pdf</i> PDF (current page)
+                    </a>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="table-responsive">
+          <table class="table align-items-center mb-0 table-striped">
+            <thead>
+              <tr>
+                <th class="text-uppercase text-xxs font-weight-bolder">Name</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Student ID</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Email</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Grade</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Site</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for student in students %}
+              <tr class="table-highlight-row clickable-row {{ 'text-muted' if student.status == 'Inactive' else '' }}"
+                  data-href="{{ url_for('routes.student_details', student_id=student.id) }}"
+                  style="cursor:pointer;">
+                <td>
+                  <div class="d-flex px-2 py-1">
+                    <div class="d-flex flex-column justify-content-center">
+                      <h6 class="mb-0 text-sm text-capitalize">{{ student.last_name }}, {{ student.first_name }} {{ student.middle_name or '' }}</h6>
+                    </div>
+                  </div>
+                </td>
+                <td class="text-center">
+                  <p class="text-xs font-weight-bold mb-0">{{ student.student_id }}</p>
+                </td>
+                <td class="text-center">
+                  <p class="text-xs font-weight-bold mb-0">{{ student.email }}</p>
+                </td>
+                <td class="text-center">
+                  <p class="text-xs font-weight-bold mb-0">{{ student.grade }}</p>
+                </td>
+                <td class="text-center">
+                  <span class="text-secondary text-xs font-weight-bold">{{ student.site.site_name }}</span>
+                </td>
+                <td class="text-center">
+                  <span class="badge badge-sm {{ 'bg-success' if student.status == 'Active' else 'bg-secondary' }}">
+                    {{ student.status }}
+                  </span>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <nav aria-label="Page navigation">
+          <ul class="pagination">
+            {{ pagination.links }}
+          </ul>
+        </nav>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+@media print {
+  aside, nav, .no-print, .search-content-box, .table-per-page-section,
+  .card-header, nav[aria-label="Page navigation"], .alert-container-box { display: none !important; }
+  body, .main-content { margin: 0 !important; padding: 0 !important; }
+  .main-card-box { box-shadow: none !important; border: none !important; }
+  .card-body { padding: 0.5rem !important; }
+  .table { font-size: 0.75rem !important; }
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+}
+</style>
+
+<script>
+function exportCSV() {
+  const params = new URLSearchParams(window.location.search);
+  window.location.href = '/students/export/csv?' + params.toString();
+}
+
+document.querySelectorAll('tr.clickable-row').forEach(function (row) {
+  row.addEventListener('click', function () {
+    window.location = row.dataset.href;
+  });
+});
+
+function applySubgroupFilter(value, checked) {
+  const url = new URL(window.location.href);
+  const params = new URLSearchParams(url.search);
+  params.delete('page');
+  let current = params.getAll('subgroup').filter(v => v !== value);
+  if (checked) current.push(value);
+  params.delete('subgroup');
+  current.forEach(v => params.append('subgroup', v));
+  url.search = params.toString();
+  window.location.href = url.toString();
+}
+
+function applyMultiFilter(param, value, checked) {
+  const url = new URL(window.location.href);
+  const params = new URLSearchParams(url.search);
+  params.delete('page');
+  let current = params.getAll(param).filter(v => v !== value);
+  if (checked) current.push(value);
+  params.delete(param);
+  current.forEach(v => params.append(param, v));
+  url.search = params.toString();
+  window.location.href = url.toString();
+}
+</script>
+
+{% endblock %}

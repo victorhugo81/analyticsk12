@@ -1,0 +1,382 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="row">
+  <div class="col-12">
+    <div class="main-card-box card my-4">
+
+      <div class="card-header p-0 position-relative mt-n4 mx-3 z-index-2">
+        <div class="bg-gradient-main shadow-dark border-radius-lg pt-4 pb-3 d-flex justify-content-between align-items-center flex-wrap">
+          <h2 class="text-white ps-3 mb-0">
+            <i class="material-symbols-rounded opacity-5">school</i> Graduation Status
+          </h2>
+          <a href="{{ url_for('routes.index') }}" class="btn btn-sm btn-outline-light no-print me-3 mb-0">
+            <i class="material-symbols-rounded icon-inline">arrow_back</i> Back to Home
+          </a>
+        </div>
+      </div>
+
+      <div class="card-body px-4 pb-5 pt-3">
+
+        <!-- Toolbar -->
+        <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+          <p class="text-sm text-muted mb-0">
+            Credits completed vs. required for grades 9&ndash;12, based on uploaded grades.csv records.
+            Status reflects whether each <a href="{{ url_for('routes.graduation_settings') }}">subject-area requirement</a>
+            is on pace &mdash; a student isn't marked On Track or Graduated just for having enough total credits if a
+            required subject area (e.g. English, Algebra I) is still short.
+          </p>
+          <div class="d-flex gap-1 no-print">
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="printDashboard()">
+              <i class="material-symbols-rounded icon-inline">picture_as_pdf</i> Export
+            </button>
+          </div>
+        </div>
+
+        <!-- KPI Cards -->
+        <div class="demo-kpi-grid mb-3" style="grid-template-columns: repeat(5, 1fr);">
+
+          <a href="{{ url_for('routes.graduation_status', grade_filter=grade_filter) }}"
+             class="demo-kpi text-decoration-none {% if not status_filter %}demo-kpi-active{% endif %}">
+            <div class="demo-kpi-icon kpi-icon--info">
+              <i class="material-symbols-rounded">group</i>
+            </div>
+            <div>
+              <div class="demo-kpi-label">HS Students</div>
+              <div class="demo-kpi-value">{{ total_students }}</div>
+              <div class="demo-kpi-sub">{{ on_track_pct }}% on track or graduated</div>
+            </div>
+          </a>
+
+          <a href="{{ url_for('routes.graduation_status', status_filter='Graduated', grade_filter=grade_filter) }}"
+             class="demo-kpi text-decoration-none {% if status_filter == 'Graduated' %}demo-kpi-active{% endif %}">
+            <div class="demo-kpi-icon" style="background:#dcfce7;">
+              <i class="material-symbols-rounded" style="color:#16a34a;">military_tech</i>
+            </div>
+            <div>
+              <div class="demo-kpi-label">Graduated</div>
+              <div class="demo-kpi-value" style="color:#16a34a;">{{ status_counts.get('Graduated', 0) }}</div>
+              <div class="demo-kpi-sub">credits met</div>
+            </div>
+          </a>
+
+          <a href="{{ url_for('routes.graduation_status', status_filter='On Track', grade_filter=grade_filter) }}"
+             class="demo-kpi text-decoration-none {% if status_filter == 'On Track' %}demo-kpi-active{% endif %}">
+            <div class="demo-kpi-icon kpi-icon--info">
+              <i class="material-symbols-rounded">trending_up</i>
+            </div>
+            <div>
+              <div class="demo-kpi-label">On Track</div>
+              <div class="demo-kpi-value text-status-info">{{ status_counts.get('On Track', 0) }}</div>
+              <div class="demo-kpi-sub">pacing to graduate</div>
+            </div>
+          </a>
+
+          <a href="{{ url_for('routes.graduation_status', status_filter='Behind', grade_filter=grade_filter) }}"
+             class="demo-kpi text-decoration-none {% if status_filter == 'Behind' %}demo-kpi-active{% endif %}">
+            <div class="demo-kpi-icon" style="background:#fef3c7;">
+              <i class="material-symbols-rounded" style="color:#d97706;">warning</i>
+            </div>
+            <div>
+              <div class="demo-kpi-label">Behind</div>
+              <div class="demo-kpi-value" style="color:#d97706;">{{ status_counts.get('Behind', 0) }}</div>
+              <div class="demo-kpi-sub">below pace</div>
+            </div>
+          </a>
+
+          <a href="{{ url_for('routes.graduation_status', status_filter='Credit Deficient', grade_filter=grade_filter) }}"
+             class="demo-kpi text-decoration-none {% if status_filter == 'Credit Deficient' %}demo-kpi-active{% endif %}">
+            <div class="demo-kpi-icon" style="background:#fde8e8;">
+              <i class="material-symbols-rounded" style="color:#dc2626;">error</i>
+            </div>
+            <div>
+              <div class="demo-kpi-label">Credit Deficient</div>
+              <div class="demo-kpi-value" style="color:#dc2626;">{{ status_counts.get('Credit Deficient', 0) }}</div>
+              <div class="demo-kpi-sub">at risk</div>
+            </div>
+          </a>
+
+        </div>
+
+        <!-- Charts -->
+        <div class="row g-3 mb-3">
+          <div class="col-12 col-lg-5">
+            <div class="chart-card">
+              <div class="chart-card-title">Status Distribution</div>
+              <div class="chart-wrap chart-wrap--donut">
+                <canvas id="chart-status"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="col-12 col-lg-7">
+            <div class="chart-card">
+              <div class="chart-card-title">Status by Grade Level</div>
+              <div class="chart-wrap chart-wrap--bar">
+                <canvas id="chart-grade"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cohort Progression -->
+        {% if cohort %}
+        <div class="row g-3 mb-3">
+          <div class="col-12">
+            <div class="compact-card">
+              <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+                <div>
+                  <div class="compact-title mb-0">Cohort Progression &mdash; Class Entering {{ cohort.entry_yr }}</div>
+                  <p class="text-xs text-muted mb-0">
+                    The CA School Dashboard's cohort graduation rate tracks a 9th-grade class forward 4 years.
+                    {% if cohort.complete %}
+                    All 4 years of data are on hand below.
+                    {% else %}
+                    {{ cohort.years_tracked }} of 4 years tracked so far &mdash; upload another year of demographics.csv to extend this.
+                    {% endif %}
+                  </p>
+                </div>
+                <span class="badge bg-secondary badge-sm">{{ cohort.cohort_size }} students in cohort</span>
+              </div>
+              <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0">
+                  <thead>
+                    <tr>
+                      <th class="text-xs text-uppercase text-muted fw-bold">School Year</th>
+                      <th class="text-xs text-uppercase text-muted fw-bold text-center">Expected Grade</th>
+                      <th class="text-xs text-uppercase text-muted fw-bold text-center">Still Enrolled</th>
+                      <th class="text-xs text-uppercase text-muted fw-bold text-center">On Expected Grade</th>
+                      <th class="text-xs text-uppercase text-muted fw-bold" style="min-width:160px;">Retention</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for step in cohort.steps %}
+                    <tr>
+                      <td class="text-sm">{{ step.schoolyr }}</td>
+                      <td class="text-center">Grade {{ step.expected_grade }}</td>
+                      <td class="text-center fw-bold">{{ step.present }} / {{ cohort.cohort_size }}</td>
+                      <td class="text-center text-muted">{{ step.on_grade }}</td>
+                      <td>
+                        <div class="d-flex align-items-center gap-2">
+                          <div class="progress flex-grow-1" style="height:8px;">
+                            <div class="progress-bar bg-primary" role="progressbar" style="width: {{ step.present_pct }}%;"></div>
+                          </div>
+                          <span class="text-xs fw-bold" style="min-width:2.5rem;">{{ step.present_pct }}%</span>
+                        </div>
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Filters -->
+        <form method="get" class="row g-3 align-items-end mb-3">
+          <input type="hidden" name="status_filter" value="{{ status_filter }}">
+          <div class="col-12 col-sm-4">
+            <label class="filter-labels text-sm mb-0">Filter By Grade</label>
+            <select name="grade_filter" class="form-select-box form-select w-100" onchange="this.form.submit()">
+              <option value="">All Grades</option>
+              {% for g in grades %}
+              <option value="{{ g }}" {% if grade_filter == g %}selected{% endif %}>Grade {{ g }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          {% if status_filter or grade_filter %}
+          <div class="col-auto">
+            <a href="{{ url_for('routes.graduation_status') }}" class="btn btn-sm btn-outline-danger">
+              <i class="material-symbols-rounded icon-inline-sm">close</i> Clear
+            </a>
+          </div>
+          {% endif %}
+        </form>
+
+        <!-- Per-page + count -->
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <span class="text-sm text-muted"><span class="fw-bold text-dark">{{ total }}</span> student{{ 's' if total != 1 else '' }} found</span>
+          <form method="get" class="d-flex align-items-center gap-2">
+            <input type="hidden" name="status_filter" value="{{ status_filter }}">
+            <input type="hidden" name="grade_filter"  value="{{ grade_filter }}">
+            <label class="text-sm mb-0">Per page:</label>
+            <select name="per_page" class="per-page-drop" onchange="this.form.submit()">
+              <option value="10" {% if per_page == 10 %}selected{% endif %}>10</option>
+              <option value="25" {% if per_page == 25 %}selected{% endif %}>25</option>
+              <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
+            </select>
+          </form>
+        </div>
+
+        <!-- Table -->
+        <div class="table-responsive">
+          <table class="table align-items-center mb-0 table-striped">
+            <thead>
+              <tr>
+                <th class="text-uppercase text-xxs font-weight-bolder">Student</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">ID</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Gr</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Site</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Credits Completed</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Expected By Now</th>
+                <th class="text-uppercase text-xxs font-weight-bolder">Progress</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in rows %}
+              {% set s = row.student %}
+              <tr>
+                <td>
+                  <a href="{{ url_for('routes.student_details', student_id=s.id) }}"
+                     class="text-dark fw-bold text-sm">
+                    {{ s.last_name }}, {{ s.first_name }}
+                  </a>
+                </td>
+                <td class="text-sm text-muted text-center">{{ s.student_id }}</td>
+                <td class="text-sm text-center">{{ s.grade }}</td>
+                <td class="text-sm text-muted text-center">{{ row.site_name }}</td>
+                <td class="text-center text-sm">{{ row.credits }} / {{ credits_required | int }}</td>
+                <td class="text-center text-sm text-muted">{{ row.expected }}</td>
+                <td style="min-width:140px;">
+                  <div class="progress" style="height:8px;">
+                    <div class="progress-bar
+                      {%- if row.status == 'Graduated' %} bg-success
+                      {%- elif row.status == 'On Track' %} bg-primary
+                      {%- elif row.status == 'Behind' %} bg-warning
+                      {%- else %} bg-danger
+                      {%- endif %}"
+                      role="progressbar" style="width: {{ row.pct }}%;"
+                      aria-valuenow="{{ row.pct }}" aria-valuemin="0" aria-valuemax="100"></div>
+                  </div>
+                  <span class="text-xs text-muted">{{ row.pct }}%</span>
+                </td>
+                <td class="text-center">
+                  {% if row.status == 'Graduated' %}
+                  <span class="badge bg-success badge-sm">Graduated</span>
+                  {% elif row.status == 'On Track' %}
+                  <span class="badge bg-primary badge-sm">On Track</span>
+                  {% elif row.status == 'Behind' %}
+                  <span class="badge bg-warning text-dark badge-sm">Behind</span>
+                  {% else %}
+                  <span class="badge bg-danger badge-sm">Credit Deficient</span>
+                  {% endif %}
+                  {% if row.missing_subjects %}
+                  <div class="text-muted mt-1" style="font-size:0.65rem;cursor:help;"
+                       title="Short on: {{ row.missing_subjects | join(', ') }}">
+                    {{ row.missing_subjects | length }} subject{{ 's' if row.missing_subjects | length != 1 }} short
+                  </div>
+                  {% endif %}
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="8" class="text-center text-muted py-4">No student data found for the selected filters.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <nav aria-label="Page navigation">
+          <ul class="pagination">
+            {{ pagination.links }}
+          </ul>
+        </nav>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.demo-kpi { transition: box-shadow 0.15s, outline 0.15s; }
+.demo-kpi:hover { box-shadow: 0 0 0 2px #94a3b8; }
+.demo-kpi-active { outline: 2px solid var(--color-main, #1e40af); box-shadow: 0 2px 8px rgba(30,64,175,0.12); }
+</style>
+
+<script src="{{ url_for('static', filename='js/plugins/chartjs.min.js') }}"></script>
+<script>
+const _status_labels  = {{ status_labels | tojson }};
+const _status_data    = {{ status_data | tojson }};
+const _grade_labels   = {{ grade_labels | tojson }};
+const _grade_datasets = {{ grade_datasets | tojson }};
+
+const STATUS_COLORS = {
+  'Credit Deficient': '#dc2626',
+  'Behind':           '#d97706',
+  'On Track':         '#1d4ed8',
+  'Graduated':        '#16a34a',
+};
+
+new Chart(document.getElementById('chart-status'), {
+  type: 'doughnut',
+  data: {
+    labels: _status_labels,
+    datasets: [{ data: _status_data, backgroundColor: _status_labels.map(l => STATUS_COLORS[l]), borderWidth: 2, borderColor: '#fff' }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false, cutout: '62%',
+    plugins: {
+      legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } },
+      tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed} (${ctx.dataset.data.reduce((a,b)=>a+b,0) ? ((ctx.parsed / ctx.dataset.data.reduce((a,b)=>a+b,0))*100).toFixed(1) : 0}%)` } }
+    }
+  }
+});
+
+new Chart(document.getElementById('chart-grade'), {
+  type: 'bar',
+  data: {
+    labels: _grade_labels.map(g => 'Grade ' + g),
+    datasets: Object.keys(_grade_datasets).map(status => ({
+      label: status,
+      data: _grade_datasets[status],
+      backgroundColor: STATUS_COLORS[status],
+      borderRadius: 4, borderSkipped: false,
+    }))
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } },
+    scales: {
+      x: { stacked: true, ticks: { color: '#737373', font: { size: 11 } }, grid: { display: false } },
+      y: { stacked: true, beginAtZero: true, ticks: { precision: 0, color: '#737373', font: { size: 11 } }, grid: { color: '#e5e5e5' } }
+    }
+  }
+});
+
+function printDashboard() {
+  const body = document.querySelector('.card-body');
+  const PRINT_CHART_H = '150px';
+  const swaps = [];
+  document.querySelectorAll('.chart-wrap canvas').forEach(canvas => {
+    const wrap = canvas.closest('.chart-wrap');
+    const img  = document.createElement('img');
+    img.src    = canvas.toDataURL('image/png');
+    img.style.cssText = 'width:100%;height:100%;object-fit:fill;display:block;';
+    canvas.insertAdjacentElement('afterend', img);
+    canvas.style.display = 'none';
+    if (wrap) { wrap._ph = wrap.style.height; wrap.style.height = PRINT_CHART_H; }
+    swaps.push({ canvas, img, wrap });
+  });
+  body.style.zoom = '1';
+  void body.offsetHeight;
+  const PAGE_W = Math.round((297 - 0.8) / 25.4 * 96);
+  const PAGE_H = Math.round((210 - 0.8) / 25.4 * 96);
+  body.style.zoom = Math.min(PAGE_W / body.scrollWidth, PAGE_H / body.scrollHeight, 1).toFixed(4);
+  setTimeout(() => {
+    window.print();
+    setTimeout(() => {
+      body.style.zoom = '';
+      swaps.forEach(({ canvas, img, wrap }) => {
+        canvas.style.display = '';
+        img.remove();
+        if (wrap) wrap.style.height = wrap._ph;
+      });
+    }, 500);
+  }, 250);
+}
+</script>
+
+{% endblock %}

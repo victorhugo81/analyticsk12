@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="row">
+  <div class="col-12">
+    <div class="main-card-box card my-4">
+
+      <div class="card-header p-0 position-relative mt-n4 mx-3 z-index-2">
+        <div class="bg-gradient-main shadow-dark border-radius-lg pt-4 pb-3 d-flex justify-content-between align-items-center flex-wrap">
+          <h2 class="text-white ps-3 mb-0">
+            <i class="material-symbols-rounded opacity-5">space_dashboard</i> Enrollment MS Availability
+          </h2>
+          <a href="{{ url_for('routes.index') }}" class="btn btn-sm btn-outline-light no-print me-3 mb-0">
+            <i class="material-symbols-rounded icon-inline">arrow_back</i> Back to Home
+          </a>
+        </div>
+      </div>
+
+      <div class="card-body px-4 pb-5 pt-3">
+
+        <!-- Grade selector + totals -->
+        <div class="d-flex align-items-center justify-content-between px-2 py-2 mb-2 rounded"
+             style="cursor:pointer; background:#f8f9fa; border:1px solid var(--color-border,#dee2e6);"
+             data-bs-toggle="collapse" data-bs-target="#gradeFilterBox"
+             role="button" aria-expanded="false">
+          <div class="d-flex align-items-center gap-2">
+            <i class="material-symbols-rounded text-muted" style="font-size:1.05rem;vertical-align:middle;">tune</i>
+            <span class="text-sm fw-bold text-dark">Grade Filter &amp; Summary</span>
+          </div>
+          <i class="material-symbols-rounded text-muted" id="gradeFilterBoxChevron" style="font-size:1.1rem;">expand_more</i>
+        </div>
+
+        <div class="collapse" id="gradeFilterBox">
+        <div class="row g-3 mb-3">
+
+          <div class="col-12 col-md-6">
+            <div class="compact-card h-100">
+              <div class="compact-title">Select Grade</div>
+              <div class="d-flex flex-wrap gap-2 mt-2">
+                {% for g in all_grades %}
+                <a href="{{ url_for('routes.enrollment_ms', grade=g) }}"
+                   class="btn btn-sm"
+                   style="min-width:2.8rem;font-weight:{{ '700' if g == grade_filter else '400' }};
+                          {% if g == grade_filter %}background:#1a237e;color:#fff;border-color:#1a237e;{% else %}background:transparent;color:#1a237e;border-color:#1a237e;{% endif %}">
+                  {{ g }}
+                </a>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 col-md-6">
+            <div class="compact-card h-100">
+              <div class="compact-title">Grade {{ grade_filter }} Summary</div>
+              <div class="d-flex flex-column gap-0 mt-1">
+                <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                  <span class="text-sm text-muted">Capacity</span>
+                  <span class="fw-bold text-sm">{{ total_capacity }}</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                  <span class="text-sm text-muted">Enrolled</span>
+                  <span class="fw-bold text-sm">{{ total_enrolled }}</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center py-2">
+                  <span class="text-sm fw-bold">Available</span>
+                  <span class="fw-bold text-sm {{ 'text-success' if total_available > 0 else 'text-danger' }}">
+                    {{ total_available }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+        </div>
+
+        <!-- Site cards -->
+        <div class="row g-3">
+          <div class="col-12">
+            <div class="row g-3">
+              {% for site in site_data %}
+              <div class="col-12 col-md-6">
+                <div class="compact-card h-100">
+                  <div class="compact-title mb-2">{{ site.site_name }}</div>
+                  <div class="table-responsive">
+                    <table class="table align-middle mb-0" style="font-size:0.82rem;">
+                      <thead>
+                        <tr>
+                          <th class="fw-bold py-2">Teacher / Section</th>
+                          <th class="fw-bold py-2 text-center">Inst</th>
+                          <th class="fw-bold py-2 text-center">Enrl</th>
+                          <th class="fw-bold py-2 text-center">Cap</th>
+                          <th class="fw-bold py-2 text-center">Avail</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for row in site.rows %}
+                        <tr>
+                          <td class="py-2">
+                            {% if row.teacher_id %}
+                            <a href="{{ url_for('routes.teacher_details', teacher_id=row.teacher_id) }}"
+                               class="fw-bold text-dark text-decoration-none">{{ row.teacher }}</a>
+                            {% else %}
+                            <div class="fw-bold">{{ row.teacher }}</div>
+                            {% endif %}
+                            <div>
+                              <a href="{{ url_for('routes.course_details', course_id=row.course_id) }}"
+                                 class="text-muted text-decoration-none" style="font-size:0.75rem;">{{ row.section_id }}</a>
+                            </div>
+                          </td>
+                          <td class="py-2 text-center">
+                            <span class="badge {{ 'bg-warning text-dark' if row.inst == 'SDC' else 'bg-secondary' }}" style="font-size:0.7rem;padding:3px 6px;">
+                              {{ row.inst }}
+                            </span>
+                          </td>
+                          <td class="py-2 text-center fw-bold">{{ row.totals }}</td>
+                          <td class="py-2 text-center text-muted">{{ row.capacity }}</td>
+                          <td class="py-2 text-center fw-bold {{ 'text-danger' if row.available < 0 else 'text-success' if row.available > 0 else 'text-muted' }}">
+                            {{ row.available }}
+                          </td>
+                        </tr>
+                        {% endfor %}
+                      </tbody>
+                      <tfoot>
+                        <tr class="border-top">
+                          <td class="py-2 fw-bold" colspan="2">Total</td>
+                          <td class="py-2 text-center fw-bold">{{ site.total }}</td>
+                          <td></td>
+                          <td class="py-2 text-center fw-bold {{ 'text-success' if site.available > 0 else 'text-danger' }}">{{ site.available }}</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </div>
+              </div>
+              {% else %}
+              <div class="col-12">
+                <p class="text-sm text-muted py-4 text-center">No active courses found for grade {{ grade_filter }}.</p>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    var box = document.getElementById('gradeFilterBox');
+    var chevron = document.getElementById('gradeFilterBoxChevron');
+    if (!box || !chevron) return;
+    box.addEventListener('shown.bs.collapse', function () { chevron.textContent = 'expand_less'; });
+    box.addEventListener('hidden.bs.collapse', function () { chevron.textContent = 'expand_more'; });
+  })();
+</script>
+
+{% endblock %}

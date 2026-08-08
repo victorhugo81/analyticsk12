@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+
+{% macro gap_table(rows, group_label) %}
+<div class="table-responsive">
+  <table class="table align-items-center mb-0 table-striped">
+    <thead>
+      <tr>
+        <th class="text-uppercase text-xxs font-weight-bolder">{{ group_label }}</th>
+        <th class="text-uppercase text-xxs font-weight-bolder text-center">Group Size</th>
+        <th class="text-uppercase text-xxs font-weight-bolder text-center" colspan="2">Chronic Absenteeism</th>
+        <th class="text-uppercase text-xxs font-weight-bolder text-center" colspan="2">Suspension Rate</th>
+      </tr>
+      <tr>
+        <th></th>
+        <th></th>
+        <th class="text-uppercase text-xxs font-weight-bolder text-center">Rate</th>
+        <th class="text-uppercase text-xxs font-weight-bolder text-center">Gap vs. District</th>
+        <th class="text-uppercase text-xxs font-weight-bolder text-center">Rate</th>
+        <th class="text-uppercase text-xxs font-weight-bolder text-center">Gap vs. District</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr class="table-highlight-row">
+        <td><p class="text-sm font-weight-bold mb-0">{{ row.label }}</p></td>
+        <td class="text-center"><span class="text-sm text-muted">{{ row.group_size }}</span></td>
+        <td class="text-center">
+          {% if row.chronic_absenteeism.pct is not none %}
+          <span class="text-sm fw-bold">{{ row.chronic_absenteeism.pct }}%</span>
+          {% else %}<span class="text-muted">—</span>{% endif %}
+        </td>
+        <td class="text-center">
+          {% set gap = row.chronic_absenteeism.gap %}
+          {% if gap is not none %}
+          <span class="badge gap-badge {{ 'bg-danger' if gap >= 5 else 'bg-warning text-dark' if gap >= 2 else 'bg-secondary' if gap > -2 else 'bg-success' }}">
+            <span class="dir" aria-hidden="true">{{ '▲' if gap > 0 else '▼' if gap < 0 else '' }}</span>{{ '+' if gap > 0 }}{{ gap }} pts
+          </span>
+          {% else %}<span class="text-muted">—</span>{% endif %}
+        </td>
+        <td class="text-center">
+          {% if row.suspension_rate.pct is not none %}
+          <span class="text-sm fw-bold">{{ row.suspension_rate.pct }}%</span>
+          {% else %}<span class="text-muted">—</span>{% endif %}
+        </td>
+        <td class="text-center">
+          {% set gap = row.suspension_rate.gap %}
+          {% if gap is not none %}
+          <span class="badge gap-badge {{ 'bg-danger' if gap >= 2 else 'bg-warning text-dark' if gap >= 0.5 else 'bg-secondary' if gap > -0.5 else 'bg-success' }}">
+            <span class="dir" aria-hidden="true">{{ '▲' if gap > 0 else '▼' if gap < 0 else '' }}</span>{{ '+' if gap > 0 }}{{ gap }} pts
+          </span>
+          {% else %}<span class="text-muted">—</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endmacro %}
+
+{% block content %}
+
+<div class="row">
+  <div class="col-12">
+    <div class="main-card-box card my-4">
+
+      <div class="card-header p-0 position-relative mt-n4 mx-3 z-index-2">
+        <div class="bg-gradient-main shadow-dark border-radius-lg pt-4 pb-3 d-flex justify-content-between align-items-center flex-wrap">
+          <h2 class="text-white ps-3 mb-0">
+            <i class="material-symbols-rounded opacity-5">balance</i> Equity Gaps
+          </h2>
+          <a href="{{ url_for('routes.index') }}" class="btn btn-sm btn-outline-light no-print me-3 mb-0">
+            <i class="material-symbols-rounded icon-inline">arrow_back</i> Back to Home
+          </a>
+        </div>
+      </div>
+
+      <div class="card-body px-4 pb-5 pt-3">
+
+        <!-- Toolbar -->
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+          <p class="text-sm text-muted mb-0">
+            How each student group's rate compares to the district-wide baseline for {{ indicator_yr or '—' }}.
+            A positive gap means the group is doing worse than the district average on that indicator.
+          </p>
+          <div class="d-flex gap-1 no-print">
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="window.print()">
+              <i class="material-symbols-rounded icon-inline">picture_as_pdf</i> Export
+            </button>
+          </div>
+        </div>
+
+        <!-- Baseline KPI cards -->
+        <div class="demo-kpi-grid mb-3" style="grid-template-columns: repeat(2, 1fr);">
+          <div class="demo-kpi">
+            <div class="demo-kpi-icon kpi-icon--critical">
+              <i class="material-symbols-rounded">event_busy</i>
+            </div>
+            <div>
+              <div class="demo-kpi-label">District Chronic Absenteeism Rate</div>
+              <div class="demo-kpi-value text-status-critical">{{ baseline_ca if baseline_ca is not none else '—' }}%</div>
+              <div class="demo-kpi-sub">baseline for every gap below</div>
+            </div>
+          </div>
+          <div class="demo-kpi">
+            <div class="demo-kpi-icon kpi-icon--warning">
+              <i class="material-symbols-rounded">gavel</i>
+            </div>
+            <div>
+              <div class="demo-kpi-label">District Suspension Rate</div>
+              <div class="demo-kpi-value text-status-warning">{{ baseline_sr if baseline_sr is not none else '—' }}%</div>
+              <div class="demo-kpi-sub">baseline for every gap below</div>
+            </div>
+          </div>
+        </div>
+
+        {% if rows %}
+        <p class="text-xs text-uppercase fw-bold text-muted mb-2">By Student Group</p>
+        {{ gap_table(rows, 'Student Group') }}
+
+        {% if ethnicity_rows %}
+        <p class="text-xs text-uppercase fw-bold text-muted mt-4 mb-2">By Race / Ethnicity</p>
+        {{ gap_table(ethnicity_rows, 'Race / Ethnicity') }}
+        {% endif %}
+
+        <p class="text-xs text-muted mt-3 mb-0">
+          Gap bands: <span class="badge bg-danger badge-sm">Wide gap</span>
+          <span class="badge bg-warning text-dark badge-sm">Moderate gap</span>
+          <span class="badge bg-secondary badge-sm">Near baseline</span>
+          <span class="badge bg-success badge-sm">Better than baseline</span>
+          &mdash; thresholds are internally defined, not an official CDE equity-report cut score.
+        </p>
+        {% else %}
+        <p class="text-sm text-muted py-4 text-center">No data available for this school year.</p>
+        {% endif %}
+
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

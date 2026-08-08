@@ -1,0 +1,1188 @@
+{% extends 'base.html' %}
+{% block content %}
+
+    <!-- main content card -->
+<div class="row">
+    <div class="col-12">
+        <div class="main-card-box card my-4">
+        <div class="card-header p-0 position-relative mt-n4 mx-3 z-index-2">
+          <div class="bg-gradient-main shadow-dark border-radius-lg pt-4 pb-3 d-flex align-items-center justify-content-between px-3">
+            <div class="d-flex align-items-center gap-2">
+              <h2 class="text-white text-capitalize mb-0">Bulk Upload</h2>
+            </div>
+            <a href="{{ url_for('routes.organization') }}" class="btn btn-sm btn-outline-light mb-0">
+                <i class="material-symbols-rounded position-relative" style="font-size:1rem; vertical-align:middle;">arrow_back</i> Back
+            </a>
+          </div>
+        </div>
+        <div class="card-body px-0 pb-2">
+
+                <!-- Current school year -->
+              {% if org and org.current_school_year %}
+              <div class="d-flex justify-content-end px-3">
+                <span class="badge bg-white text-dark border">
+                  <i class="material-symbols-rounded position-relative" style="font-size:0.9rem; vertical-align:middle;">event</i>
+                  Current School Year: {{ org.current_school_year }}
+                </span>
+              </div>
+              {% endif %}
+            <br>
+                <!-- End Current school year -->
+
+
+    <!-- Main Tabs: Upload / FTP / Templates -->
+    <div class="card-body">
+        <div class="container-md">
+
+            <ul class="nav nav-tabs mb-4" id="mainTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="upload-tab" data-bs-toggle="tab" data-bs-target="#upload-pane"
+                            type="button" role="tab" aria-controls="upload-pane" aria-selected="true">
+                        <i class="material-symbols-rounded position-relative me-1" style="font-size:1rem; vertical-align:middle;">upload_file</i>
+                        Upload
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="ftp-tab" data-bs-toggle="tab" data-bs-target="#ftp-pane"
+                            type="button" role="tab" aria-controls="ftp-pane" aria-selected="false">
+                        <i class="material-symbols-rounded position-relative me-1" style="font-size:1rem; vertical-align:middle;">dns</i>
+                        FTP
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="templates-tab" data-bs-toggle="tab" data-bs-target="#templates-pane"
+                            type="button" role="tab" aria-controls="templates-pane" aria-selected="false">
+                        <i class="material-symbols-rounded position-relative me-1" style="font-size:1rem; vertical-align:middle;">menu_book</i>
+                        Templates
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content" id="mainTabContent">
+
+                <!-- ============================= -->
+                <!-- Upload Pane                   -->
+                <!-- ============================= -->
+                <div class="tab-pane fade show active" id="upload-pane" role="tabpanel" aria-labelledby="upload-tab">
+
+                    <p class="text-sm text-muted mb-3">Select or drag any combination of files at once. They're processed in order: sites.csv, staff.csv, demographics.csv, absences.csv/behavioral_incidents.csv, courses.csv/master_schedule.csv, then students_schedule.csv/parents.csv/grades.csv, then users.csv.
+                        {% if org and org.current_school_year %}Rows that omit <code>schoolyr</code> default to <strong>{{ org.current_school_year }}</strong>.{% endif %}
+                    </p>
+
+                    <form action="{{ url_for('routes.bulk_upload_users') }}" method="POST" enctype="multipart/form-data" id="uploadForm">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                        <div id="dropZone" class="drop-file-upload">
+                            <i class="material-symbols-rounded" style="font-size: 3rem; color: #344767;">upload_file</i>
+                            <p class="fw-bold mt-2 mb-1" style="font-size: 1.05rem;">Click or drag and drop your CSV files here</p>
+                            <p class="text-muted text-sm mb-0">Accepts <strong>sites.csv</strong>, <strong>users.csv</strong>, <strong>demographics.csv</strong>, <strong>absences.csv</strong>, <strong>behavioral_incidents.csv</strong>, <strong>staff.csv</strong>, <strong>courses.csv</strong>, <strong>master_schedule.csv</strong>, <strong>students_schedule.csv</strong>, <strong>parents.csv</strong>, and <strong>grades.csv</strong> &mdash; maximum 100 MB each</p>
+                            <input type="file" id="csvFile" name="csvFile" accept=".csv" multiple class="d-none">
+                            <div id="fileName" class="text-sm mt-3"></div>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-3">
+                            <button type="submit" class="btn bg-gradient-dark" id="uploadBtn" disabled>Upload</button>
+                        </div>
+                    </form>
+                </div>
+                <!-- End Upload Pane -->
+
+                <!-- ============================= -->
+                <!-- FTP Pane                      -->
+                <!-- ============================= -->
+                <div class="tab-pane fade" id="ftp-pane" role="tabpanel" aria-labelledby="ftp-tab">
+
+                    <p class="text-sm text-muted mb-3">
+                        Enter your FTP server details below. Click <strong>Save Settings</strong> to store them for future use, or <strong>Sync All Now</strong> to run an import immediately.
+                        {% if org and org.ftp_host_enc %}<span class="badge bg-gradient-success ms-1">Credentials saved</span>{% endif %}
+                    </p>
+                    <p class="text-xs text-muted mb-3">This single sync pulls <code>sites.csv</code>, <code>users.csv</code>, <code>demographics.csv</code>, <code>staff.csv</code>, <code>courses.csv</code>, <code>master_schedule.csv</code>, <code>students_schedule.csv</code>, and <code>parents.csv</code> together from the directory below (any of them not found on the server are skipped).</p>
+
+                    <form id="ftpForm" method="POST" action="{{ url_for('routes.ftp_bulk_upload_users') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                        <div class="row g-3">
+                            <div class="col-md-8">
+                                <label class="form-label text-sm font-weight-bold" for="ftp_host">FTP Host</label>
+                                <input type="text" class="form-control" id="ftp_host" name="ftp_host"
+                                       value="{{ ftp_host_plain }}"
+                                       placeholder="ftp.example.com" autocomplete="off">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label text-sm font-weight-bold" for="ftp_port">Port</label>
+                                <input type="number" class="form-control" id="ftp_port" name="ftp_port"
+                                       value="{{ org.ftp_port or 21 if org else 21 }}" min="1" max="65535">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-sm font-weight-bold" for="ftp_username">Username</label>
+                                <input type="text" class="form-control" id="ftp_username" name="ftp_username"
+                                       value="{{ ftp_username_plain }}"
+                                       placeholder="ftpuser" autocomplete="off">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-sm font-weight-bold" for="ftp_password">Password</label>
+                                <div class="input-group">
+                                    <input type="password" class="form-control" id="ftp_password" name="ftp_password"
+                                           placeholder="{{ '••••••• (saved)' if org and org.ftp_password_enc else '••••••••' }}"
+                                           autocomplete="new-password">
+                                    <button class="btn btn-outline-secondary" type="button" id="toggleFtpPwd"
+                                            tabindex="-1" aria-label="Toggle password visibility">
+                                        <i class="material-symbols-rounded icon-inline" id="ftpPwdIcon">visibility</i>
+                                    </button>
+                                </div>
+                                {% if org and org.ftp_password_enc %}
+                                <div class="form-text text-xs text-muted">Leave blank to keep the saved password.</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label text-sm font-weight-bold" for="ftp_path">Remote Directory</label>
+                                <input type="text" class="form-control" id="ftp_path" name="ftp_path"
+                                       value="{{ org.ftp_path or '' if org else '' }}"
+                                       placeholder="/uploads/" autocomplete="off">
+                                <div class="form-text text-xs text-muted">Directory on the FTP server containing <code>sites.csv</code>, <code>users.csv</code>, <code>demographics.csv</code>, <code>staff.csv</code>, <code>courses.csv</code>, <code>master_schedule.csv</code>, <code>students_schedule.csv</code>, and <code>parents.csv</code>, e.g. <code>/data/</code></div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="ftp_use_tls" name="ftp_use_tls"
+                                           {{ 'checked' if org and org.ftp_use_tls else '' }}>
+                                    <label class="form-check-label text-sm" for="ftp_use_tls">Use FTPS (FTP over TLS/SSL)</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Schedule section -->
+                        <hr class="my-3">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <h6 class="font-weight-bold mb-0">
+                                <i class="material-symbols-rounded position-relative me-1" style="font-size:1rem; vertical-align:middle;">schedule</i>
+                                Automatic Schedule
+                            </h6>
+                            {% if org and org.ftp_schedule_enabled and org.ftp_last_run_at %}
+                            <small class="text-muted">
+                                Last run: {{ org.ftp_last_run_at | localtime('%m/%d/%Y %I:%M %p') }}
+                                {% if org.ftp_last_run_status == 'success' %}
+                                    <span class="badge badge-sm bg-gradient-success ms-1">Success</span>
+                                {% else %}
+                                    <span class="badge badge-sm bg-gradient-danger ms-1">Error</span>
+                                {% endif %}
+                            </small>
+                            {% endif %}
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="ftp_schedule_enabled"
+                                           name="ftp_schedule_enabled"
+                                           {{ 'checked' if org and org.ftp_schedule_enabled else '' }}
+                                           onchange="document.getElementById('scheduleFields').classList.toggle('d-none', !this.checked)">
+                                    <label class="form-check-label text-sm font-weight-bold" for="ftp_schedule_enabled">
+                                        Enable automatic import
+                                    </label>
+                                </div>
+                            </div>
+                            <div id="scheduleFields" {% if not (org and org.ftp_schedule_enabled) %}class="d-none"{% endif %}>
+
+
+                                    <div class="col-md-3">
+                                        <label class="form-label text-sm font-weight-bold" for="ftp_schedule_start_date">Start Date</label>
+                                        <input type="date" class="form-control" id="ftp_schedule_start_date"
+                                               name="ftp_schedule_start_date"
+                                               value="{{ org.ftp_schedule_start_date.isoformat() if org and org.ftp_schedule_start_date else '' }}">
+                                        <div class="form-text text-xs text-muted">First day the schedule runs.</div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label text-sm font-weight-bold" for="ftp_schedule_stop_date">Stop Date</label>
+                                        <input type="date" class="form-control" id="ftp_schedule_stop_date"
+                                               name="ftp_schedule_stop_date"
+                                               value="{{ org.ftp_schedule_stop_date.isoformat() if org and org.ftp_schedule_stop_date else '' }}">
+                                        <div class="form-text text-xs text-muted">Leave blank to run indefinitely.</div>
+                                    </div>
+                                    <spacer class="flex-fill" style="height: 5%;"></spacer>
+
+                                    <div class="col-md-3">
+                                        <label class="form-label text-sm font-weight-bold" for="ftp_schedule_time">Run Time <span aria-hidden="true" class="text-danger ms-1">*</span></label>
+                                        <input type="time" class="form-control" id="ftp_schedule_time"
+                                               name="ftp_schedule_time" value="{{ ftp_schedule_time }}">
+                                    </div>
+
+                                    <spacer class="flex-fill" style="height: 5%;"></spacer>
+
+                                    <div class="col-md-9">
+                                        <label class="form-label text-sm font-weight-bold d-block">Days of Week</label>
+                                        <div class="d-flex flex-wrap gap-3 mt-1">
+                                            {% set active_days = (org.ftp_schedule_days or '*').split(',') if org else ['*'] %}
+                                            {% for day_val, day_label in [('mon','Mon'),('tue','Tue'),('wed','Wed'),('thu','Thu'),('fri','Fri'),('sat','Sat'),('sun','Sun')] %}
+                                            <div class="form-check form-check-inline">
+                                                <input class="form-check-input" type="checkbox"
+                                                       name="ftp_schedule_days" value="{{ day_val }}"
+                                                       id="sched_{{ day_val }}"
+                                                       {{ 'checked' if active_days == ['*'] or day_val in active_days else '' }}>
+                                                <label class="form-check-label text-sm" for="sched_{{ day_val }}">{{ day_label }}</label>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-outline-dark p-3" onclick="saveFtpSettings()">
+                                <i class="material-symbols-rounded position-relative me-1" style="font-size:1rem; height: 25px; vertical-align:middle;">save</i>
+                                Save Settings
+                            </button>
+                            <button type="submit" style="height:56px;"class="btn bg-gradient-dark">
+                                <i class="material-symbols-rounded position-relative me-1" style="font-size:1rem; vertical-align:middle;">cloud_download</i>
+                                Sync All Now
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                <!-- End FTP Pane -->
+
+                <!-- ============================= -->
+                <!-- Templates Pane                -->
+                <!-- ============================= -->
+                <div class="tab-pane fade" id="templates-pane" role="tabpanel" aria-labelledby="templates-tab">
+
+                    <p class="text-xs text-uppercase fw-bold text-muted mb-3">Organization Files</p>
+
+                    <!-- Instructions -->
+                    <div class="card-body align-items-center">
+                        <div class="container-md">
+                            <h3 class="mb-3">
+                                <i class="material-symbols-rounded position-relative me-1" style="font-size:1.2rem; vertical-align:middle;">info</i>
+                                Instructions
+                            </h3>
+                            <ol class="text-sm ps-3">
+                                <li class="mb-1">Download the CSV template using the button in the <strong>Templates</strong> tab below.</li>
+                                <li class="mb-1">Fill in all required columns for each row. Do not remove or rename column headers.</li>
+                                <li class="mb-1">If a record already exists, it will be <strong>updated</strong>. If not, a new record will be <strong>created</strong>.</li>
+                                <li class="mb-1">Any active user <strong>not found</strong> in an uploaded users.csv will be automatically marked <strong>Inactive</strong>.</li>
+                                <li class="mb-1">New users are assigned a random temporary password and will be required to change it on first login.</li>
+                                <li>Save your file as <strong>filename.csv</strong> (UTF-8 encoding) before uploading.</li>
+                            </ol>
+                        </div>
+                    </div>
+                    <hr class="mx-4">
+                    <!-- End Instructions -->
+
+                    <div class="row">
+                        <div class="col">
+                                <h3 class="mt-3">
+                                    <i class="material-symbols-rounded position-relative me-1" style="font-size:1.2rem; vertical-align:middle;">table_chart</i>
+                                    sites.csv
+                                </h3>
+                        </div>
+                        <div class="col justify-content-end d-flex">
+                            <a href="{{ url_for('static', filename='download/site_bulk_template_upload.csv') }}"
+                            class="btn btn-outline-dark" download>
+                                <i class="material-symbols-rounded position-relative me-1"
+                                style="font-size:1rem; vertical-align:middle;">download</i>
+                                Sites Template
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Sites CSV Columns reference -->
+                    <div class="table-responsive mb-4">
+                        <table class="table table-bordered table-sm text-sm align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="text-uppercase text-xxs font-weight-bolder ps-3">Column</th>
+                                    <th class="text-uppercase text-xxs font-weight-bolder">Required</th>
+                                    <th class="text-uppercase text-xxs font-weight-bolder">Description</th>
+                                    <th class="text-uppercase text-xxs font-weight-bolder">Example</th>
+                                </tr>
+                            </thead>
+                    <tbody>
+                        <tr>
+                            <td class="ps-3 font-weight-bold">site_name</td>
+                            <td><span class="badge badge-sm bg-gradient-danger">Required</span></td>
+                            <td>Unique site name</td>
+                            <td class="text-muted">Gotham High School</td>
+                        </tr>
+                        <tr>
+                            <td class="ps-3 font-weight-bold">site_acronyms</td>
+                            <td><span class="badge badge-sm bg-gradient-danger">Required</span></td>
+                            <td>School Acronyms</td>
+                            <td class="text-muted">GHS</td>
+                        </tr>
+                        <tr>
+                            <td class="ps-3 font-weight-bold">site_id</td>
+                            <td><span class="badge badge-sm bg-gradient-danger">Required</span></td>
+                            <td>CDS code</td>
+                            <td class="text-muted">12-73399-1232232</td>
+                        </tr>
+                        <tr>
+                            <td class="ps-3 font-weight-bold">site_code</td>
+                            <td><span class="badge badge-sm bg-gradient-danger">Required</span></td>
+                            <td>Short site code</td>
+                            <td class="text-muted">897908</td>
+                        </tr>
+                        <tr>
+                            <td class="ps-3 font-weight-bold">site_address</td>
+                            <td><span class="badge badge-sm bg-gradient-danger">Required</span></td>
+                            <td>Physical address</td>
+                            <td class="text-muted">345 Main Street, Anytown, CA 12345</td>
+                        </tr>
+                        <tr>
+                            <td class="ps-3 font-weight-bold">sitecity</td>
+                            <td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td>
+                            <td>City</td>
+                            <td class="text-muted">Anytown</td>
+                        </tr>
+                        <tr>
+                            <td class="ps-3 font-weight-bold">sitestate</td>
+                            <td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td>
+                            <td>State abbreviation</td>
+                            <td class="text-muted">CA</td>
+                        </tr>
+                        <tr>
+                            <td class="ps-3 font-weight-bold">sitezip</td>
+                            <td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td>
+                            <td>Zip code</td>
+                            <td class="text-muted">12345</td>
+                        </tr>
+                        <tr>
+                            <td class="ps-3 font-weight-bold">prnfirstn</td>
+                            <td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td>
+                            <td>Principal first name</td>
+                            <td class="text-muted">Olivia</td>
+                        </tr>
+                        <tr>
+                            <td class="ps-3 font-weight-bold">prnlastn</td>
+                            <td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td>
+                            <td>Principal last name</td>
+                            <td class="text-muted">Carr</td>
+                        </tr>
+                        <tr>
+                            <td class="ps-3 font-weight-bold">email</td>
+                            <td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td>
+                            <td>Principal email</td>
+                            <td class="text-muted">olivia.carr@gotham.org</td>
+                        </tr>
+                        <tr>
+                            <td class="ps-3 font-weight-bold">phone</td>
+                            <td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td>
+                            <td>Principal phone</td>
+                            <td class="text-muted">5557683910</td>
+                        </tr>
+                        <tr>
+                            <td class="ps-3 font-weight-bold">site_type</td>
+                            <td><span class="badge badge-sm bg-gradient-danger">Required</span></td>
+                            <td>Site Level or category</td>
+                            <td class="text-muted">Elementary, Middle, High</td>
+                        </tr>
+                    </tbody>
+                        </table>
+                    </div>
+
+                    <div class="row">
+                        <div class="col">
+                                <h3 class="mt-4 mb-3">
+                                    <i class="material-symbols-rounded position-relative me-1" style="font-size:1.2rem; vertical-align:middle;">table_chart</i>
+                                    users.csv
+                                </h3>
+                        </div>
+                        <div class="col justify-content-end d-flex">
+                            <a href="{{ url_for('static', filename='download/user_bulk_template_upload.csv') }}"
+                            class="btn btn-outline-dark mt-3" download>
+                                <i class="material-symbols-rounded position-relative me-1"
+                                style="font-size:1rem; vertical-align:middle;">download</i>
+                                Users Template
+                            </a>
+                        </div>
+                    </div>
+                    <div class="table-responsive mb-4">
+                        <table class="table table-bordered table-sm text-sm align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="text-uppercase text-xxs font-weight-bolder ps-3">Column</th>
+                                    <th class="text-uppercase text-xxs font-weight-bolder">Required</th>
+                                    <th class="text-uppercase text-xxs font-weight-bolder">Description</th>
+                                    <th class="text-uppercase text-xxs font-weight-bolder">Example</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="ps-3 font-weight-bold">first_name</td>
+                                    <td><span class="badge badge-sm bg-gradient-danger">Required</span></td>
+                                    <td>User's first name</td>
+                                    <td class="text-muted">Maria</td>
+                                </tr>
+                                <tr>
+                                    <td class="ps-3 font-weight-bold">middle_name</td>
+                                    <td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td>
+                                    <td>User's middle name</td>
+                                    <td class="text-muted">Elena</td>
+                                </tr>
+                                <tr>
+                                    <td class="ps-3 font-weight-bold">last_name</td>
+                                    <td><span class="badge badge-sm bg-gradient-danger">Required</span></td>
+                                    <td>User's last name</td>
+                                    <td class="text-muted">Garcia</td>
+                                </tr>
+                                <tr>
+                                    <td class="ps-3 font-weight-bold">email</td>
+                                    <td><span class="badge badge-sm bg-gradient-danger">Required</span></td>
+                                    <td>Unique email address — used to match existing users</td>
+                                    <td class="text-muted">m.garcia@school.edu</td>
+                                </tr>
+                                <tr>
+                                    <td class="ps-3 font-weight-bold">role_id</td>
+                                    <td><span class="badge badge-sm bg-gradient-danger">Required</span></td>
+                                    <td>Numeric role ID (1 = Admin, 2 = Specialist, 3 = Technician, 4 = User)</td>
+                                    <td class="text-muted">4</td>
+                                </tr>
+                                <tr>
+                                    <td class="ps-3 font-weight-bold">site_name</td>
+                                    <td><span class="badge badge-sm bg-gradient-danger">Required</span></td>
+                                    <td>Exact site name as it appears in the system</td>
+                                    <td class="text-muted">Lincoln Elementary</td>
+                                </tr>
+                                <tr>
+                                    <td class="ps-3 font-weight-bold">rm_num</td>
+                                    <td><span class="badge badge-sm bg-gradient-danger">Required</span></td>
+                                    <td>Room number or location</td>
+                                    <td class="text-muted">101</td>
+                                </tr>
+                                <tr>
+                                    <td class="ps-3 font-weight-bold">status</td>
+                                    <td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td>
+                                    <td>Account status — defaults to <strong>Active</strong> if omitted</td>
+                                    <td class="text-muted">Active</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <hr class="my-4">
+                    <p class="text-xs text-uppercase fw-bold text-muted mb-3">Academic Files</p>
+
+                    <div class="row">
+                        <div class="col">
+                                <h3 class="mt-3">
+                                    <i class="material-symbols-rounded position-relative me-1" style="font-size:1.2rem; vertical-align:middle;">table_chart</i>
+                                    demographics.csv
+                                </h3>
+                        </div>
+                        <div class="col justify-content-end d-flex">
+                            <a href="{{ url_for('static', filename='download/demographics_template.csv') }}"
+                            class="btn btn-outline-dark mt-3" download>
+                                <i class="material-symbols-rounded position-relative me-1"
+                                style="font-size:1rem; vertical-align:middle;">download</i>
+                                Demographics Template
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive mb-4">
+                        <table class="table table-bordered table-sm text-sm align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="text-uppercase text-xxs font-weight-bolder ps-3">Column</th>
+                                    <th class="text-uppercase text-xxs font-weight-bolder">Required</th>
+                                    <th class="text-uppercase text-xxs font-weight-bolder">Description</th>
+                                    <th class="text-uppercase text-xxs font-weight-bolder">Example</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td class="ps-3 font-weight-bold">site_id</td><td><span class="badge badge-sm bg-gradient-danger">Required</span></td><td>Site CDS code — matched against the CDS code in Sites (separators ignored)</td><td class="text-muted">67_67399_5136971</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">stu_id</td><td><span class="badge badge-sm bg-gradient-danger">Required</span></td><td>Local student ID — used to match existing records</td><td class="text-muted">67012682</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">ssid</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>State Student ID (CALPADS)</td><td class="text-muted">1004241936</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">first_name</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>Student first name</td><td class="text-muted">Maria</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">middle_name</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>Student middle name</td><td class="text-muted">Elena</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">last_name</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>Student last name</td><td class="text-muted">Garcia</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">email</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>Student email address</td><td class="text-muted">m.garcia@students.edu</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">grade</td><td><span class="badge badge-sm bg-gradient-danger">Required</span></td><td>Grade level</td><td class="text-muted">TK, KN, 1–12</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">gender</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>M, F, N, or X</td><td class="text-muted">F</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">birth_date</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>Date of birth — M/D/YY or MM/DD/YYYY</td><td class="text-muted">10/1/19</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">gradyr</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>Expected graduation year</td><td class="text-muted">2036</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">race</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>CALPADS ethnicity code (100–900)</td><td class="text-muted">500</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">frmcode</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>Free/Reduced Meal: 0=None, 1=Free, 2=Reduced, 3=Paid</td><td class="text-muted">1</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">english_status</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>EL, EO, IFEP, RFEP, or TBD</td><td class="text-muted">EL</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">entry_date</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>Enrollment date — M/D/YY or MM/DD/YYYY</td><td class="text-muted">7/4/22</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">exit_date</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>Exit date — leave blank if still enrolled</td><td class="text-muted"></td></tr>
+                                <tr><td class="ps-3 font-weight-bold">disability</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>Disability code or indicator; 0 = none</td><td class="text-muted">0</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">dwelling_type</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>Homeless indicator: 0=No, 1=Yes</td><td class="text-muted">0</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">migrant</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>Y or N</td><td class="text-muted">N</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">foster</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>Y or N</td><td class="text-muted">N</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">code_504</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>504 Plan: 0=No, 1=Yes</td><td class="text-muted">0</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">schoolyr</td><td><span class="badge badge-sm bg-gradient-danger">Required</span></td><td>School year in YYYY-YYYY format</td><td class="text-muted">2024-2025</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Absences CSV -->
+                    <div class="row">
+                        <div class="col">
+                            <h3 class="mt-4 mb-3">
+                                <i class="material-symbols-rounded position-relative me-1" style="font-size:1.2rem; vertical-align:middle;">table_chart</i>
+                                absences.csv
+                            </h3>
+                        </div>
+                        <div class="col justify-content-end d-flex">
+                            <a href="{{ url_for('static', filename='download/absences_template.csv') }}"
+                            class="btn btn-outline-dark mt-3" download>
+                                <i class="material-symbols-rounded position-relative me-1"
+                                style="font-size:1rem; vertical-align:middle;">download</i>
+                                Absences Template
+                            </a>
+                        </div>
+                    </div>
+                    <div class="table-responsive mb-4">
+                        <table class="table table-bordered table-sm text-sm align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="text-uppercase text-xxs font-weight-bolder ps-3">Column</th>
+                                    <th class="text-uppercase text-xxs font-weight-bolder">Required</th>
+                                    <th class="text-uppercase text-xxs font-weight-bolder">Description</th>
+                                    <th class="text-uppercase text-xxs font-weight-bolder">Example</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td class="ps-3 font-weight-bold">stu_id</td><td><span class="badge badge-sm bg-gradient-danger">Required</span></td><td>Local student ID — matched against demographics.csv stu_id</td><td class="text-muted">67020215</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">site_id</td><td><span class="badge badge-sm bg-gradient-danger">Required</span></td><td>Site CDS code (separators ignored)</td><td class="text-muted">67_67399_5136980</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">abs_date</td><td><span class="badge badge-sm bg-gradient-danger">Required</span></td><td>Absence date — M/D/YY or MM/DD/YYYY</td><td class="text-muted">10/8/24</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">schoolyr</td><td><span class="badge badge-sm bg-gradient-danger">Required</span></td><td>School year in YYYY-YYYY format</td><td class="text-muted">2024-2025</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">period</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>Bell period</td><td class="text-muted">3</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">abs_desc</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>Absence description</td><td class="text-muted">Excused Absence</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">grade</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>Student grade level at time of absence</td><td class="text-muted">12</td></tr>
+
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Behavioral Incidents CSV -->
+                    <div class="row">
+                        <div class="col">
+                            <h3 class="mt-4 mb-3">
+                                <i class="material-symbols-rounded position-relative me-1" style="font-size:1.2rem; vertical-align:middle;">table_chart</i>
+                                behavioral_incidents.csv
+                            </h3>
+                        </div>
+                        <div class="col justify-content-end d-flex">
+                            <a href="{{ url_for('static', filename='download/behavioral_incidents_template.csv') }}"
+                            class="btn btn-outline-dark mt-3" download>
+                                <i class="material-symbols-rounded position-relative me-1"
+                                style="font-size:1rem; vertical-align:middle;">download</i>
+                                Behavioral Incidents Template
+                            </a>
+                        </div>
+                    </div>
+                    <p class="text-sm text-muted mb-3">Adds discipline incidents. De-duplicates by <code>incident_id</code> — re-uploading the same file is safe.</p>
+
+                    <div class="table-responsive mb-4">
+                        <table class="table table-bordered table-sm text-sm align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="text-uppercase text-xxs font-weight-bolder ps-3">Column</th>
+                                    <th class="text-uppercase text-xxs font-weight-bolder">Required</th>
+                                    <th class="text-uppercase text-xxs font-weight-bolder">Description</th>
+                                    <th class="text-uppercase text-xxs font-weight-bolder">Example</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td class="ps-3 font-weight-bold">stu_id</td><td><span class="badge badge-sm bg-gradient-danger">Required</span></td><td>Local student ID — matched against demographics.csv stu_id</td><td class="text-muted">67012757</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">site_id</td><td><span class="badge badge-sm bg-gradient-danger">Required</span></td><td>Site CDS code (separators ignored)</td><td class="text-muted">67_67399_5136971</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">incident_id</td><td><span class="badge badge-sm bg-gradient-danger">Required</span></td><td>Unique incident identifier — used to de-duplicate re-uploads</td><td class="text-muted">127377</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">incident_date</td><td><span class="badge badge-sm bg-gradient-danger">Required</span></td><td>Incident date — M/D/YY or MM/DD/YYYY</td><td class="text-muted">2/26/25</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">schoolyr</td><td><span class="badge badge-sm bg-gradient-danger">Required</span></td><td>School year in YYYY-YYYY format</td><td class="text-muted">2024-2025</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">incident_time</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>Time of incident</td><td class="text-muted">10:00 AM</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">suspension_days</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>Days suspended</td><td class="text-muted">1</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">minor_incident</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>Non-zero marks this a minor incident</td><td class="text-muted">1</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">major_incident</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>Non-zero marks this a major incident</td><td class="text-muted">0</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="row">
+                        <div class="col">
+                                <h3 class="mt-4 mb-3">
+                                    <i class="material-symbols-rounded position-relative me-1" style="font-size:1.2rem; vertical-align:middle;">table_chart</i>
+                                    staff.csv
+                                </h3>
+                        </div>
+                        <div class="col justify-content-end d-flex">
+                            <a href="{{ url_for('static', filename='download/staff_bulk_template_upload.csv') }}"
+                            class="btn btn-outline-dark mt-3" download>
+                                <i class="material-symbols-rounded position-relative me-1"
+                                style="font-size:1rem; vertical-align:middle;">download</i>
+                                Staff Template
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive mb-4">
+                        <table class="table table-bordered table-sm text-sm align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="text-uppercase text-xxs font-weight-bolder ps-3">Column</th>
+                                    <th class="text-uppercase text-xxs font-weight-bolder">Required</th>
+                                    <th class="text-uppercase text-xxs font-weight-bolder">Description</th>
+                                    <th class="text-uppercase text-xxs font-weight-bolder">Example</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td class="ps-3 font-weight-bold">site_id</td><td><span class="badge badge-sm bg-gradient-danger">Required</span></td><td>Site CDS code — matched against the CDS code in Sites (separators ignored)</td><td class="text-muted">67_67399_5136975</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">employee_id</td><td><span class="badge badge-sm bg-gradient-danger">Required</span></td><td>Unique staff ID — used to match existing records</td><td class="text-muted">T4021670</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">first_name</td><td><span class="badge badge-sm bg-gradient-danger">Required</span></td><td>Staff first name</td><td class="text-muted">Abigail</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">middle_name</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>Staff middle name</td><td class="text-muted">Rose</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">last_name</td><td><span class="badge badge-sm bg-gradient-danger">Required</span></td><td>Staff last name</td><td class="text-muted">Smith</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">email</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>Staff email address</td><td class="text-muted">abigail.smith@mail.org</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="row">
+                        <div class="col">
+                                <h3 class="mt-4 mb-3">
+                                    <i class="material-symbols-rounded position-relative me-1" style="font-size:1.2rem; vertical-align:middle;">table_chart</i>
+                                    courses.csv
+                                </h3>
+                        </div>
+                        <div class="col justify-content-end d-flex">
+                            <a href="{{ url_for('static', filename='download/courses_bulk_template_upload.csv') }}"
+                            class="btn btn-outline-dark mt-3" download>
+                                <i class="material-symbols-rounded position-relative me-1"
+                                style="font-size:1rem; vertical-align:middle;">download</i>
+                                Courses Template
+                            </a>
+                        </div>
+                    </div>
+                    <p class="text-sm text-muted mb-3">Upsert course sections by <code>site_id</code> + <code>section_id</code>. Uploading <code>master_schedule.csv</code> for the same sections fills in period, term, and teacher.</p>
+
+                    <div class="table-responsive mb-4">
+                        <table class="table table-bordered table-sm text-sm align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="text-uppercase text-xxs font-weight-bolder ps-3">Column</th>
+                                    <th class="text-uppercase text-xxs font-weight-bolder">Required</th>
+                                    <th class="text-uppercase text-xxs font-weight-bolder">Description</th>
+                                    <th class="text-uppercase text-xxs font-weight-bolder">Example</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td class="ps-3 font-weight-bold">site_id</td><td><span class="badge badge-sm bg-gradient-danger">Required</span></td><td>Site CDS code — matched against the CDS code in Sites (separators ignored)</td><td class="text-muted">67_67399_5136980</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">course_name</td><td><span class="badge badge-sm bg-gradient-danger">Required</span></td><td>Course title</td><td class="text-muted">ART APPRECIATION</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">section_id</td><td><span class="badge badge-sm bg-gradient-danger">Required</span></td><td>Section identifier — used to match existing sections</td><td class="text-muted">1520780</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">course_id</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>Course catalog identifier</td><td class="text-muted">6063</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">college_dept</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>College-level department grouping</td><td class="text-muted">Arts</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">deptartment</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>Department</td><td class="text-muted">Art</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">credits</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>Credits awarded</td><td class="text-muted">10</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">max_students</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>Maximum enrollment</td><td class="text-muted">25</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">grade_level</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>Grade this section serves — drives the Enrollment K-6/MS/HS dashboards</td><td class="text-muted">3</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="row">
+                        <div class="col">
+                                <h3 class="mt-4 mb-3">
+                                    <i class="material-symbols-rounded position-relative me-1" style="font-size:1.2rem; vertical-align:middle;">table_chart</i>
+                                    master_schedule.csv
+                                </h3>
+                        </div>
+                        <div class="col justify-content-end d-flex">
+                            <a href="{{ url_for('static', filename='download/master_schedule_bulk_template_upload.csv') }}"
+                            class="btn btn-outline-dark mt-3" download>
+                                <i class="material-symbols-rounded position-relative me-1"
+                                style="font-size:1rem; vertical-align:middle;">download</i>
+                                Master Schedule Template
+                            </a>
+                        </div>
+                    </div>
+                    <p class="text-sm text-muted mb-3">Upsert course sections by <code>site_id</code> + <code>section_id</code>, same as <code>courses.csv</code>. <code>staff_id</code> must match an already-uploaded staff.csv employee_id.</p>
+
+                    <div class="table-responsive mb-4">
+                        <table class="table table-bordered table-sm text-sm align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="text-uppercase text-xxs font-weight-bolder ps-3">Column</th>
+                                    <th class="text-uppercase text-xxs font-weight-bolder">Required</th>
+                                    <th class="text-uppercase text-xxs font-weight-bolder">Description</th>
+                                    <th class="text-uppercase text-xxs font-weight-bolder">Example</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td class="ps-3 font-weight-bold">site_id</td><td><span class="badge badge-sm bg-gradient-danger">Required</span></td><td>Site CDS code — matched against the CDS code in Sites (separators ignored)</td><td class="text-muted">67_67399_5136971</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">section_id</td><td><span class="badge badge-sm bg-gradient-danger">Required</span></td><td>Section identifier — used to match existing sections</td><td class="text-muted">1 BC-SI-03</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">course_name</td><td><span class="badge badge-sm bg-gradient-danger">Required</span></td><td>Course title</td><td class="text-muted">1st Grade</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">period</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>Class period</td><td class="text-muted">1</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">term_code</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>Term code</td><td class="text-muted">YR</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">staff_id</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>Assigned teacher's employee ID (staff.csv)</td><td class="text-muted">T4021760</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">grade_level</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>Grade this section serves — drives the Enrollment K-6/MS/HS dashboards</td><td class="text-muted">9</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Grades CSV -->
+                    <div class="row">
+                        <div class="col">
+                            <h3 class="mt-4 mb-3">
+                                <i class="material-symbols-rounded position-relative me-1" style="font-size:1.2rem; vertical-align:middle;">table_chart</i>
+                                grades.csv
+                            </h3>
+                        </div>
+                        <div class="col justify-content-end d-flex">
+                            <a href="{{ url_for('static', filename='download/grades_template.csv') }}"
+                            class="btn btn-outline-dark mt-3" download>
+                                <i class="material-symbols-rounded position-relative me-1"
+                                style="font-size:1rem; vertical-align:middle;">download</i>
+                                Grades Template
+                            </a>
+                        </div>
+                    </div>
+                    <p class="text-sm text-muted mb-3">Adds student course grade records, shown on the Grades tab of each student's detail page and used by the Graduation Status dashboard. Upserts by student + section + term + year — re-uploading the same file updates the existing record (mark, credits, grade level) instead of skipping it.</p>
+
+                    <div class="table-responsive mb-4">
+                        <table class="table table-bordered table-sm text-sm align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="text-uppercase text-xxs font-weight-bolder ps-3">Column</th>
+                                    <th class="text-uppercase text-xxs font-weight-bolder">Required</th>
+                                    <th class="text-uppercase text-xxs font-weight-bolder">Description</th>
+                                    <th class="text-uppercase text-xxs font-weight-bolder">Example</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td class="ps-3 font-weight-bold">stu_id</td><td><span class="badge badge-sm bg-gradient-danger">Required</span></td><td>Local student ID — matched against demographics.csv stu_id</td><td class="text-muted">67017094</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">site_id</td><td><span class="badge badge-sm bg-gradient-danger">Required</span></td><td>Site CDS code (separators ignored)</td><td class="text-muted">67_67399_5136980</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">section_id</td><td><span class="badge badge-sm bg-gradient-danger">Required</span></td><td>Course section identifier</td><td class="text-muted">C9104G7C-1</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">term_code</td><td><span class="badge badge-sm bg-gradient-danger">Required</span></td><td>Grading term — trailing letter (S/Q/T/M/Y) sets the term type shown on the Grades tab</td><td class="text-muted">1S</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">course_yr</td><td><span class="badge badge-sm bg-gradient-danger">Required</span></td><td>Ending calendar year of the school year the term belongs to</td><td class="text-muted">2025 (= 2024-2025)</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">course_grade</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>Student's grade level at the time of the record</td><td class="text-muted">9</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">mark</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>Letter grade earned</td><td class="text-muted">B-</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">credit_attempted</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>Credits attempted</td><td class="text-muted">5</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">creadit_completed</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>Credits completed (counts toward graduation)</td><td class="text-muted">5</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="row">
+                        <div class="col">
+                                <h3 class="mt-4 mb-3">
+                                    <i class="material-symbols-rounded position-relative me-1" style="font-size:1.2rem; vertical-align:middle;">table_chart</i>
+                                    students_schedule.csv
+                                </h3>
+                        </div>
+                        <div class="col justify-content-end d-flex">
+                            <a href="{{ url_for('static', filename='download/students_schedule_bulk_template_upload.csv') }}"
+                            class="btn btn-outline-dark mt-3" download>
+                                <i class="material-symbols-rounded position-relative me-1"
+                                style="font-size:1rem; vertical-align:middle;">download</i>
+                                Student Schedule Template
+                            </a>
+                        </div>
+                    </div>
+                    <p class="text-sm text-muted mb-3">Enrolls or drops students in course sections. <code>section_id</code> must already exist (uploaded via courses.csv or master_schedule.csv) at the site given by this file's <code>site_id</code> column; if <code>site_id</code> is left blank, the student's own demographics.csv site is used instead. Provide <code>site_id</code> whenever a student's schedule includes a section hosted at a different site than their own — <code>section_id</code> alone is not unique across sites.</p>
+
+                    <div class="table-responsive mb-4">
+                        <table class="table table-bordered table-sm text-sm align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="text-uppercase text-xxs font-weight-bolder ps-3">Column</th>
+                                    <th class="text-uppercase text-xxs font-weight-bolder">Required</th>
+                                    <th class="text-uppercase text-xxs font-weight-bolder">Description</th>
+                                    <th class="text-uppercase text-xxs font-weight-bolder">Example</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td class="ps-3 font-weight-bold">stu_id</td><td><span class="badge badge-sm bg-gradient-danger">Required</span></td><td>Local student ID — matched against demographics.csv stu_id</td><td class="text-muted">67020215</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">section_id</td><td><span class="badge badge-sm bg-gradient-danger">Required</span></td><td>Section identifier — matched within the section's site (see site_id below)</td><td class="text-muted">C795201-01</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">site_id</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>Site CDS code where the section is hosted (separators ignored) — leave blank to use the student's own demographics.csv site</td><td class="text-muted">67_67399_5136981</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">start_date</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>Date the student started the section</td><td class="text-muted">8/12/24</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">schoolyr</td><td><span class="badge badge-sm bg-gradient-danger">Required</span></td><td>School year in YYYY-YYYY format — matches the student's demographics.csv schoolyr</td><td class="text-muted">2024-2025</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">leave_date</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>Date the student left the section — leave blank if still enrolled</td><td class="text-muted"></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="row">
+                        <div class="col">
+                                <h3 class="mt-4 mb-3">
+                                    <i class="material-symbols-rounded position-relative me-1" style="font-size:1.2rem; vertical-align:middle;">table_chart</i>
+                                    parents.csv
+                                </h3>
+                        </div>
+                        <div class="col justify-content-end d-flex">
+                            <a href="{{ url_for('static', filename='download/parents_bulk_template_upload.csv') }}"
+                            class="btn btn-outline-dark mt-3" download>
+                                <i class="material-symbols-rounded position-relative me-1"
+                                style="font-size:1rem; vertical-align:middle;">download</i>
+                                Parents Template
+                            </a>
+                        </div>
+                    </div>
+                    <p class="text-sm text-muted mb-3">Upserts parent/guardian contacts and links each to the student in <code>stu_id</code> (matched against demographics.csv, across all school years). Matches existing parents by <code>email</code> when present.</p>
+
+                    <div class="table-responsive mb-4">
+                        <table class="table table-bordered table-sm text-sm align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="text-uppercase text-xxs font-weight-bolder ps-3">Column</th>
+                                    <th class="text-uppercase text-xxs font-weight-bolder">Required</th>
+                                    <th class="text-uppercase text-xxs font-weight-bolder">Description</th>
+                                    <th class="text-uppercase text-xxs font-weight-bolder">Example</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td class="ps-3 font-weight-bold">first_name</td><td><span class="badge badge-sm bg-gradient-danger">Required</span></td><td>Parent/guardian first name</td><td class="text-muted">Ricardo</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">middle_name</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>Parent/guardian middle name</td><td class="text-muted"></td></tr>
+                                <tr><td class="ps-3 font-weight-bold">last_name</td><td><span class="badge badge-sm bg-gradient-danger">Required</span></td><td>Parent/guardian last name</td><td class="text-muted">Summerville</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">relationship</td><td><span class="badge badge-sm bg-gradient-danger">Required</span></td><td>Mother, Father, Guardian, Grandparent, or Other</td><td class="text-muted">Father</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">email</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>Email address — used to match existing parents</td><td class="text-muted">ricardo.summerville@mail.com</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">phone</td><td><span class="badge badge-sm bg-gradient-secondary">Optional</span></td><td>Phone number</td><td class="text-muted">5555563733</td></tr>
+                                <tr><td class="ps-3 font-weight-bold">stu_id</td><td><span class="badge badge-sm bg-gradient-danger">Required</span></td><td>Local student ID — matched against demographics.csv stu_id</td><td class="text-muted">67012682</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                </div>
+                <!-- End Templates Pane -->
+
+            </div>
+        </div>
+    </div>
+    <!-- End Main Tabs -->
+
+    <hr class="mx-4">
+
+    <!-- Upload Log Section -->
+    <div class="table-per-page-section mt-2">
+        <div class="row justify-content-between align-items-center">
+            <div class="col">
+                <h3 class="mb-0 ps-2">
+                    <i class="material-symbols-rounded position-relative me-1" style="font-size:1.2rem; vertical-align:middle;">history</i>
+                    Review Upload Log
+                </h3>
+            </div>
+            <div class="col-auto pe-3">
+                <span class="text-xs text-muted">{{ user_logs.total }} total record{{ 's' if user_logs.total != 1 }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload Log Table -->
+    <div class="table-responsive mt-3">
+        <table class="table align-items-center mb-0 table-striped">
+            <thead>
+                <tr>
+                    <th class="text-uppercase text-xxs font-weight-bolder">Date / File</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder">Uploaded By</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder text-center">Total Records</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder text-center">Added</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder text-center">Updated</th>
+                    <th class="text-uppercase text-xxs font-weight-bolder text-center">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if user_logs.items %}
+                    {% for log in user_logs.items %}
+                    <tr>
+                        <td>
+                            <div class="d-flex px-2 py-1 align-items-center">
+                                <i class="material-symbols-rounded text-muted me-2" style="font-size:1.2rem;">description</i>
+                                <div>
+                                    <h6 class="mb-0 text-sm">{{ log.filename }}</h6>
+                                    <p class="text-xs text-secondary mb-0">{{ log.uploaded_at | localtime('%m/%d/%Y %I:%M %p') }}</p>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <p class="text-xs font-weight-bold mb-0">
+                                {% if log.uploader %}
+                                    <i class="material-symbols-rounded position-relative me-1" style="font-size:0.9rem; vertical-align:middle;">person</i>
+                                    {{ log.uploader.first_name }} {{ log.uploader.last_name }}
+                                {% else %}
+                                    &mdash;
+                                {% endif %}
+                            </p>
+                        </td>
+                        <td class="text-center align-middle">
+                            <span class="text-xs font-weight-bold">{{ log.total_records }}</span>
+                            <p class="text-xs text-muted mb-0">Total Records</p>
+                        </td>
+                        <td class="text-center align-middle">
+                            <span class="text-success text-xs font-weight-bold">{{ log.users_added }}</span>
+                            <p class="text-xs text-muted mb-0">Added</p>
+                        </td>
+                        <td class="text-center align-middle">
+                            <span class="text-info text-xs font-weight-bold">{{ log.users_updated }}</span>
+                            <p class="text-xs text-muted mb-0">Updated</p>
+                        </td>
+                        <td class="text-center align-middle">
+                            {% if log.status == 'success' and not log.error_message %}
+                                <span class="badge badge-sm bg-gradient-success">Success</span>
+                            {% elif log.status == 'success' %}
+                                <button type="button" class="btn btn-link p-0 border-0 bg-transparent"
+                                        data-bs-toggle="collapse" data-bs-target="#err-log-{{ log.id }}"
+                                        aria-expanded="false" aria-controls="err-log-{{ log.id }}">
+                                    <span class="badge badge-sm bg-gradient-success">
+                                        Success <i class="material-symbols-rounded position-relative" style="font-size:0.9rem; vertical-align:middle;">expand_more</i>
+                                    </span>
+                                </button>
+                            {% else %}
+                                <button type="button" class="btn btn-link p-0 border-0 bg-transparent"
+                                        data-bs-toggle="collapse" data-bs-target="#err-log-{{ log.id }}"
+                                        aria-expanded="false" aria-controls="err-log-{{ log.id }}">
+                                    <span class="badge badge-sm bg-gradient-danger">
+                                        Error <i class="material-symbols-rounded position-relative" style="font-size:0.9rem; vertical-align:middle;">expand_more</i>
+                                    </span>
+                                </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% if log.error_message %}
+                    <tr class="collapse" id="err-log-{{ log.id }}">
+                        <td colspan="6" class="bg-light">
+                            <pre class="text-xs {{ 'text-dark' if log.status == 'success' else 'text-danger' }} mb-0 px-2" style="white-space: pre-wrap;">{{ log.error_message.replace('; ', '\n') }}</pre>
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">No uploads yet.</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if user_logs.pages > 1 %}
+    <nav class="mt-3 px-2" aria-label="Upload log pagination">
+        <ul class="pagination pagination-sm justify-content-end mb-0">
+            <li class="page-item {% if not user_logs.has_prev %}disabled{% endif %}">
+                <a class="page-link" href="?log_page={{ user_logs.prev_num }}" aria-label="Previous">
+                    <span aria-hidden="true">&laquo;</span>
+                </a>
+            </li>
+            {% for p in user_logs.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                {% if p %}
+                    <li class="page-item {% if p == user_logs.page %}active{% endif %}">
+                        <a class="page-link" href="?log_page={{ p }}">{{ p }}</a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+                {% endif %}
+            {% endfor %}
+            <li class="page-item {% if not user_logs.has_next %}disabled{% endif %}">
+                <a class="page-link" href="?log_page={{ user_logs.next_num }}" aria-label="Next">
+                    <span aria-hidden="true">&raquo;</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+    {% endif %}
+    <!-- End Upload Log Table -->
+
+</div>
+</div>
+</div>
+</div>
+<!-- End main content card -->
+
+<!-- Processing Modal -->
+<div class="modal fade" id="processingModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-body text-center py-4">
+        <div class="spinner-border text-dark mb-3" role="status" style="width:3rem;height:3rem;">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mb-1 fw-bold">Processing your file(s)&hellip;</p>
+        <p class="text-muted text-sm mb-0">This may take a few minutes for large files. Please don't close or refresh this window.</p>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- End Processing Modal -->
+
+<!-- Result Modal -->
+<div class="modal fade" id="resultModal" tabindex="-1" aria-labelledby="resultModalTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="resultModalTitle">
+          <i class="material-symbols-rounded position-relative me-1" id="resultModalIcon" style="font-size:1.2rem; vertical-align:middle;">check_circle</i>
+          <span id="resultModalTitleText">Processing Complete</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="resultModalBody"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn bg-gradient-dark" data-bs-dismiss="modal">OK</button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- End Result Modal -->
+
+<script>
+const ICONS = {
+    'users.csv': 'group', 'sites.csv': 'location_city', 'site.csv': 'location_city',
+    'absences.csv': 'event_busy', 'behavioral_incidents.csv': 'gavel',
+    'demographics.csv': 'people', 'staff.csv': 'badge', 'courses.csv': 'menu_book',
+    'master_schedule.csv': 'calendar_month', 'students_schedule.csv': 'event_note',
+    'parents.csv': 'family_restroom', 'grades.csv': 'grade'
+};
+
+function setupDropzone({ dropZoneId, fileInputId, fileNameId, uploadBtnId, allowed }) {
+    const dropZone = document.getElementById(dropZoneId);
+    const fileInput = document.getElementById(fileInputId);
+    const fileNameDisplay = document.getElementById(fileNameId);
+    const uploadBtn = document.getElementById(uploadBtnId);
+
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.style.backgroundColor = '#e9ecef';
+        dropZone.style.borderColor = '#5e72e4';
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.style.backgroundColor = '#f8f9fa';
+        dropZone.style.borderColor = '#344767';
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.style.backgroundColor = '#f8f9fa';
+        dropZone.style.borderColor = '#344767';
+        if (e.dataTransfer.files.length > 0) {
+            fileInput.files = e.dataTransfer.files;
+            handleFileSelect();
+        }
+    });
+
+    fileInput.addEventListener('change', () => {
+        if (fileInput.files.length > 0) {
+            handleFileSelect();
+        }
+    });
+
+    function handleFileSelect() {
+        const files = fileInput.files;
+        const invalidExt = Array.from(files).filter(f => !f.name.toLowerCase().endsWith('.csv'));
+        if (invalidExt.length > 0) {
+            fileNameDisplay.innerHTML = '<span class="text-danger"><i class="material-symbols-rounded position-relative" style="font-size:0.9rem;vertical-align:middle;">error</i> All files must be .csv</span>';
+            uploadBtn.disabled = true;
+            return;
+        }
+        if (allowed) {
+            const mismatched = Array.from(files).filter(f => !allowed.has(f.name.toLowerCase()));
+            if (mismatched.length > 0) {
+                fileNameDisplay.innerHTML = `<span class="text-danger"><i class="material-symbols-rounded position-relative" style="font-size:0.9rem;vertical-align:middle;">error</i> ${mismatched.map(f => f.name).join(', ')} not accepted here</span>`;
+                uploadBtn.disabled = true;
+                return;
+            }
+        }
+        const lines = Array.from(files).map(f => {
+            const icon = ICONS[f.name.toLowerCase()] || 'description';
+            return `<span class="text-success me-3"><i class="material-symbols-rounded position-relative" style="font-size:0.9rem;vertical-align:middle;">${icon}</i> ${f.name}</span>`;
+        });
+        fileNameDisplay.innerHTML = lines.join('');
+        uploadBtn.disabled = false;
+    }
+}
+
+setupDropzone({
+    dropZoneId: 'dropZone', fileInputId: 'csvFile', fileNameId: 'fileName', uploadBtnId: 'uploadBtn',
+    allowed: new Set(['sites.csv', 'site.csv', 'users.csv', 'demographics.csv', 'absences.csv', 'behavioral_incidents.csv', 'staff.csv', 'courses.csv', 'master_schedule.csv', 'students_schedule.csv', 'parents.csv', 'grades.csv'])
+});
+
+// FTP password toggle
+document.getElementById('toggleFtpPwd').addEventListener('click', () => {
+    const input = document.getElementById('ftp_password');
+    const icon  = document.getElementById('ftpPwdIcon');
+    input.type = input.type === 'password' ? 'text' : 'password';
+    icon.textContent = input.type === 'password' ? 'visibility' : 'visibility_off';
+});
+
+// Save FTP settings to Organization
+const FTP_SAVE_URL = "{{ url_for('routes.ftp_save_settings') }}";
+function saveFtpSettings() {
+    document.getElementById('ftpForm').action = FTP_SAVE_URL;
+    document.getElementById('ftpForm').submit();
+}
+
+// Show a "processing" modal while a bulk upload or FTP sync is in flight.
+// Both forms do a normal (non-AJAX) POST, so the modal simply stays up until
+// the browser navigates to the response page — where the result modal below takes over.
+function showProcessingModal(submitBtn) {
+    if (submitBtn) submitBtn.disabled = true;
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('processingModal')).show();
+}
+
+document.getElementById('uploadForm').addEventListener('submit', () => {
+    showProcessingModal(document.getElementById('uploadBtn'));
+});
+
+// saveFtpSettings() submits this same form via form.submit(), which does NOT fire
+// the 'submit' event — so this listener only fires for the real "Sync All Now" click.
+document.getElementById('ftpForm').addEventListener('submit', (e) => {
+    showProcessingModal(e.submitter);
+});
+
+// bootstrap.min.js loads in the footer, after this block, so anything that touches
+// `bootstrap.*` on page load (rather than inside a later event callback) has to wait
+// until the whole document — footer scripts included — has finished executing.
+document.addEventListener('DOMContentLoaded', function () {
+
+// After a redirect back from an upload/sync, surface the flashed result message(s)
+// in a modal instead of (or in addition to) the inline banner.
+(function () {
+    const processingModalEl = document.getElementById('processingModal');
+    const processingModal = bootstrap.Modal.getInstance(processingModalEl);
+    if (processingModal) processingModal.hide();
+
+    const flashAlerts = document.querySelectorAll('#alert-container .alert.border-radius-lg');
+    if (!flashAlerts.length) return;
+
+    const body = document.getElementById('resultModalBody');
+    let hasError = false;
+    flashAlerts.forEach(alert => {
+        if (alert.classList.contains('alert-danger')) hasError = true;
+        const p = document.createElement('p');
+        p.className = 'mb-2 ' + (alert.classList.contains('alert-danger') ? 'text-danger' : 'text-dark');
+        p.textContent = alert.querySelector('span')?.textContent || alert.textContent.trim();
+        body.appendChild(p);
+        alert.remove();
+    });
+
+    document.getElementById('resultModalTitleText').textContent = hasError ? 'Processing Error' : 'Processing Complete';
+    const icon = document.getElementById('resultModalIcon');
+    icon.textContent = hasError ? 'error' : 'check_circle';
+    icon.className = 'material-symbols-rounded position-relative me-1 ' + (hasError ? 'text-danger' : 'text-success');
+
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('resultModal')).show();
+})();
+
+// Activate the correct tab from ?tab=xxx query param
+(function () {
+    const params = new URLSearchParams(window.location.search);
+    const chains = {
+        upload: ['upload-tab'],
+        ftp: ['ftp-tab'],
+        'org-ftp': ['ftp-tab'],
+        'academics-ftp': ['ftp-tab'],
+        templates: ['templates-tab'],
+        reference: ['templates-tab'],
+    };
+    const chain = chains[params.get('tab')];
+    if (chain) {
+        chain.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) bootstrap.Tab.getOrCreateInstance(el).show();
+        });
+    }
+})();
+
+});
+</script>
+
+{% endblock %}

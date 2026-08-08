@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="row">
+  <div class="col-12">
+    <div class="main-card-box card my-4">
+      <div class="card-header p-0 position-relative mt-n4 mx-3 z-index-2">
+        <div class="bg-gradient-main custom-title-card">
+          <h2 class="text-white text-capitalize ps-3">
+            <i class="material-symbols-rounded opacity-5">support</i> {{ current_page_name }}
+          </h2>
+        </div>
+      </div>
+      <div class="card-body px-4 pb-4">
+        <br>
+
+        <p class="text-sm text-muted mb-3">MTSS/RTI support logged for individual students. Add a new intervention from the <a href="{{ url_for('routes.early_warning') }}">Early Warning</a> page or a student's detail page.</p>
+
+        <!-- Search box -->
+        <div class="search-content-box mb-4">
+          <div class="row justify-content-between">
+            <div class="col">
+              <form method="get" class="d-flex">
+                <input type="hidden" name="tier_filter"     value="{{ tier_filter }}">
+                <input type="hidden" name="category_filter" value="{{ category_filter }}">
+                <input type="hidden" name="status_filter"   value="{{ status_filter }}">
+                <input type="text" name="search" class="search-field-box form-control"
+                       placeholder="Search by student name or ID"
+                       value="{{ search }}">
+                <button type="submit" class="btn bg-gradient-main search-button-box shadow-dark">Search</button>
+                <a href="{{ url_for('routes.interventions') }}" type="button" class="btn reset-button-box shadow-dark">Reset</a>
+              </form>
+            </div>
+          </div>
+
+          <div class="row justify-content-between">
+            <div class="col mb-4">
+              <label class="filter-labels text-sm mb-0">Filter By Tier</label>
+              <form method="get" class="d-flex">
+                <input type="hidden" name="search"           value="{{ search }}">
+                <input type="hidden" name="category_filter"  value="{{ category_filter }}">
+                <input type="hidden" name="status_filter"    value="{{ status_filter }}">
+                <select name="tier_filter" class="form-select-box form-select" onchange="this.form.submit()">
+                  <option value="">All Tiers</option>
+                  {% for t in tiers %}
+                  <option value="{{ t }}" {% if tier_filter == t %}selected{% endif %}>{{ t }}</option>
+                  {% endfor %}
+                </select>
+              </form>
+            </div>
+            <div class="col mb-4">
+              <label class="filter-labels text-sm mb-0">Filter By Category</label>
+              <form method="get" class="d-flex">
+                <input type="hidden" name="search"         value="{{ search }}">
+                <input type="hidden" name="tier_filter"    value="{{ tier_filter }}">
+                <input type="hidden" name="status_filter"  value="{{ status_filter }}">
+                <select name="category_filter" class="form-select-box form-select" onchange="this.form.submit()">
+                  <option value="">All Categories</option>
+                  {% for c in categories %}
+                  <option value="{{ c }}" {% if category_filter == c %}selected{% endif %}>{{ c }}</option>
+                  {% endfor %}
+                </select>
+              </form>
+            </div>
+            <div class="col mb-4">
+              <label class="filter-labels text-sm mb-0">Filter By Status</label>
+              <form method="get" class="d-flex">
+                <input type="hidden" name="search"           value="{{ search }}">
+                <input type="hidden" name="tier_filter"      value="{{ tier_filter }}">
+                <input type="hidden" name="category_filter"  value="{{ category_filter }}">
+                <select name="status_filter" class="form-select-box form-select" onchange="this.form.submit()">
+                  <option value="">All Statuses</option>
+                  <option value="Active"       {% if status_filter == 'Active' %}selected{% endif %}>Active</option>
+                  <option value="Completed"    {% if status_filter == 'Completed' %}selected{% endif %}>Completed</option>
+                  <option value="Discontinued" {% if status_filter == 'Discontinued' %}selected{% endif %}>Discontinued</option>
+                </select>
+              </form>
+            </div>
+          </div>
+        </div>
+        <!-- end search box -->
+
+        <div class="table-per-page-section mt-4">
+          <div class="row justify-content-between align-items-center">
+            <div class="col-4">
+              <form method="get" class="d-flex">
+                <label for="per_page">Items per page: </label>
+                <select name="per_page" id="per_page" class="per-page-drop" onchange="this.form.submit()">
+                  <option value="10" {% if per_page == 10 %}selected{% endif %}>10</option>
+                  <option value="25" {% if per_page == 25 %}selected{% endif %}>25</option>
+                  <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
+                </select>
+              </form>
+            </div>
+            <div class="col-auto text-end">
+              <span class="text-sm text-muted"><strong>{{ active_count }}</strong> active &middot; <strong>{{ total }}</strong> total</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="table-responsive">
+          <table class="table align-items-center mb-0 table-striped">
+            <thead>
+              <tr>
+                <th class="text-uppercase text-xxs font-weight-bolder">Student</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Tier</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Category</th>
+                <th class="text-uppercase text-xxs font-weight-bolder">Intervention</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Start</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Status</th>
+                <th class="text-uppercase text-xxs font-weight-bolder text-center">Outcome</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for iv in rows %}
+              <tr class="table-highlight-row">
+                <td>
+                  <a href="{{ url_for('routes.student_details', student_id=iv.student.id) }}#pane-interventions"
+                     class="text-sm font-weight-bold text-dark text-decoration-none">
+                    {{ iv.student.last_name }}, {{ iv.student.first_name }}
+                  </a>
+                </td>
+                <td class="text-center">
+                  <span class="badge badge-sm {{ 'bg-danger' if iv.tier == 'Tier 3' else 'bg-warning text-dark' if iv.tier == 'Tier 2' else 'bg-secondary' }}">{{ iv.tier }}</span>
+                </td>
+                <td class="text-center"><p class="text-xs font-weight-bold mb-0">{{ iv.category }}</p></td>
+                <td><p class="text-xs mb-0" style="max-width:340px;">{{ iv.description | truncate(90) }}</p></td>
+                <td class="text-center"><p class="text-xs mb-0">{{ iv.start_date.strftime('%m/%d/%Y') if iv.start_date else '—' }}</p></td>
+                <td class="text-center">
+                  <span class="badge badge-sm {{ 'bg-success' if iv.status == 'Active' else 'bg-secondary' }}">{{ iv.status }}</span>
+                </td>
+                <td class="text-center">
+                  {% if iv.outcome == 'Improved' %}<span class="text-success text-xs fw-bold">Improved</span>
+                  {% elif iv.outcome == 'Worsened' %}<span class="text-danger text-xs fw-bold">Worsened</span>
+                  {% elif iv.outcome == 'No Change' %}<span class="text-muted text-xs">No Change</span>
+                  {% else %}<span class="text-muted text-xs">—</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="7" class="text-center text-muted py-4">No interventions logged yet.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <nav aria-label="Page navigation">
+          <ul class="pagination">{{ pagination.links }}</ul>
+        </nav>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

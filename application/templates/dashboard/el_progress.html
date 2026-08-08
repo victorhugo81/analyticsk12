@@ -1,0 +1,267 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="row">
+  <div class="col-12">
+    <div class="main-card-box card my-4">
+
+      <div class="card-header p-0 position-relative mt-n4 mx-3 z-index-2">
+        <div class="bg-gradient-main shadow-dark border-radius-lg pt-4 pb-3 d-flex justify-content-between align-items-center flex-wrap">
+          <h2 class="text-white ps-3 mb-0">
+            <i class="material-symbols-rounded opacity-5">translate</i> English Learner Progress
+          </h2>
+          <a href="{{ url_for('routes.index') }}" class="btn btn-sm btn-outline-light no-print me-3 mb-0">
+            <i class="material-symbols-rounded icon-inline">arrow_back</i> Back to Home
+          </a>
+        </div>
+      </div>
+
+      <div class="card-body px-4 pb-5 pt-3">
+
+        <!-- Toolbar -->
+        <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+          <p class="text-sm text-muted mb-0">Language proficiency status, reclassification rate, and academic support signals.</p>
+          <div class="d-flex gap-1 no-print">
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="printDashboard()">
+              <i class="material-symbols-rounded icon-inline">picture_as_pdf</i> Export
+            </button>
+          </div>
+        </div>
+
+        <!-- KPI Cards -->
+        <div class="demo-kpi-grid">
+          <a class="demo-kpi" href="{{ url_for('routes.students') }}?english_status=EL">
+            <div class="demo-kpi-icon kpi-icon--info">
+              <i class="material-symbols-rounded">translate</i>
+            </div>
+            <div>
+              <div class="demo-kpi-label">English Learners</div>
+              <div class="demo-kpi-value">{{ el_count }}</div>
+              <div class="demo-kpi-sub">{{ ((el_count / total_enrollment * 100) | round(1)) if total_enrollment else 0 }}% of enrollment</div>
+            </div>
+          </a>
+          <a class="demo-kpi" href="{{ url_for('routes.students') }}?english_status=RFEP">
+            <div class="demo-kpi-icon" style="background:#dcfce7;">
+              <i class="material-symbols-rounded" style="color:#16a34a;">military_tech</i>
+            </div>
+            <div>
+              <div class="demo-kpi-label">Reclassified (RFEP)</div>
+              <div class="demo-kpi-value" style="color:#16a34a;">{{ rfep_count }}</div>
+              <div class="demo-kpi-sub">{{ reclass_rate }}% reclassification rate</div>
+            </div>
+          </a>
+          <a class="demo-kpi" href="{{ url_for('routes.students') }}?english_status=IFEP">
+            <div class="demo-kpi-icon" style="background:#ede9fe;">
+              <i class="material-symbols-rounded" style="color:#6d28d9;">check_circle</i>
+            </div>
+            <div>
+              <div class="demo-kpi-label">Initially Fluent (IFEP)</div>
+              <div class="demo-kpi-value">{{ ifep_count }}</div>
+              <div class="demo-kpi-sub">{{ ((ifep_count / total_enrollment * 100) | round(1)) if total_enrollment else 0 }}% of enrollment</div>
+            </div>
+          </a>
+          <a class="demo-kpi" href="{{ url_for('routes.students') }}?english_status=EO">
+            <div class="demo-kpi-icon" style="background:#f1f5f9;">
+              <i class="material-symbols-rounded" style="color:#475569;">groups</i>
+            </div>
+            <div>
+              <div class="demo-kpi-label">English Only</div>
+              <div class="demo-kpi-value">{{ eo_count }}</div>
+              <div class="demo-kpi-sub">{{ ((eo_count / total_enrollment * 100) | round(1)) if total_enrollment else 0 }}% of enrollment</div>
+            </div>
+          </a>
+          <a class="demo-kpi" href="{{ url_for('routes.students') }}?english_status=TBD">
+            <div class="demo-kpi-icon" style="background:#fef3c7;">
+              <i class="material-symbols-rounded" style="color:#d97706;">pending</i>
+            </div>
+            <div>
+              <div class="demo-kpi-label">To Be Determined</div>
+              <div class="demo-kpi-value" style="color:#d97706;">{{ tbd_count }}</div>
+              <div class="demo-kpi-sub">needs assessment</div>
+            </div>
+          </a>
+          <a class="demo-kpi" href="{{ url_for('routes.students') }}?subgroup=no_english_status">
+            <div class="demo-kpi-icon" style="background:#fde8e8;">
+              <i class="material-symbols-rounded" style="color:#dc2626;">error</i>
+            </div>
+            <div>
+              <div class="demo-kpi-label">Missing Status</div>
+              <div class="demo-kpi-value" style="color:#dc2626;">{{ missing_count }}</div>
+              <div class="demo-kpi-sub">data quality gap</div>
+            </div>
+          </a>
+        </div>
+
+        <!-- Row: EL by Grade + Language Status Distribution -->
+        <div class="row g-3 mb-3">
+          <div class="col-12 col-lg-7">
+            <div class="chart-card">
+              <div class="chart-card-title">English Learners by Grade</div>
+              <div class="chart-wrap chart-wrap--bar">
+                <canvas id="chart-grade"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="col-12 col-lg-5">
+            <div class="chart-card">
+              <div class="chart-card-title">Language Status Distribution</div>
+              <div class="chart-wrap chart-wrap--donut">
+                <canvas id="chart-status"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row: Academic Support Signals -->
+        <div class="row g-3 mb-3">
+          <div class="col-12">
+            <div class="chart-card">
+              <div class="chart-card-title">Academic Support Signals &mdash; EL Students, {{ schoolyr }}</div>
+              <p class="text-xs text-muted mb-3">Whether currently-EL students are also showing up in other risk signals &mdash; the same thresholds Early Warning uses (chronic absence &ge;18 days, any F grade), narrowed to English Learners.</p>
+              <div class="row g-3">
+                <div class="col-12 col-sm-6">
+                  <div class="d-flex align-items-center justify-content-between border rounded-3 px-3 py-2">
+                    <div class="d-flex align-items-center gap-2">
+                      <i class="material-symbols-rounded" style="font-size:1.1rem;color:#dc2626;">event_busy</i>
+                      <span class="text-sm">Chronically Absent</span>
+                    </div>
+                    <span class="fw-bold text-sm">{{ chronic_el }} <span class="text-muted fw-normal">({{ ((chronic_el / el_count * 100) | round(1)) if el_count else 0 }}% of EL)</span></span>
+                  </div>
+                </div>
+                <div class="col-12 col-sm-6">
+                  <div class="d-flex align-items-center justify-content-between border rounded-3 px-3 py-2">
+                    <div class="d-flex align-items-center gap-2">
+                      <i class="material-symbols-rounded text-status-info" style="font-size:1.1rem;">grade</i>
+                      <span class="text-sm">Failing a Course (F)</span>
+                    </div>
+                    <span class="fw-bold text-sm">{{ f_el }} <span class="text-muted fw-normal">({{ ((f_el / el_count * 100) | round(1)) if el_count else 0 }}% of EL)</span></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row: By Site -->
+        <div class="row g-3 mb-3">
+          <div class="col-12">
+            <div class="chart-card">
+              <div class="chart-card-title">English Learners by Site</div>
+              <div class="table-responsive mt-2">
+                <table class="table table-sm table-hover align-middle mb-0">
+                  <thead>
+                    <tr>
+                      <th class="text-xs text-uppercase text-muted fw-bold">Site</th>
+                      <th class="text-xs text-uppercase text-muted fw-bold text-center">EL</th>
+                      <th class="text-xs text-uppercase text-muted fw-bold text-center">RFEP</th>
+                      <th class="text-xs text-uppercase text-muted fw-bold text-center">Reclass. Rate</th>
+                      <th class="text-xs text-uppercase text-muted fw-bold text-center">% of EL Enrollment</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for site_id, site_name, el_n, rfep_n, rate in site_table_data %}
+                    <tr>
+                      <td>
+                        <a href="{{ url_for('routes.students', site_filter=site_id, english_status='EL') }}" class="text-decoration-none text-dark">{{ site_name }}</a>
+                      </td>
+                      <td class="fw-bold text-center">{{ el_n }}</td>
+                      <td class="text-center">{{ rfep_n }}</td>
+                      <td class="text-center">{{ rate }}%</td>
+                      <td class="text-muted text-center">{{ ((el_n / el_site_grand_total * 100) | round(1)) if el_site_grand_total else 0 }}%</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                      <td colspan="5" class="text-center text-muted py-4">No English Learner data found for the selected filters.</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/plugins/chartjs.min.js') }}"></script>
+<script>
+const _grade_labels  = {{ grade_labels | tojson }};
+const _grade_counts  = {{ grade_counts | tojson }};
+const _status_labels = {{ status_labels | tojson }};
+const _status_counts = {{ status_counts | tojson }};
+
+const PRIMARY = getComputedStyle(document.documentElement).getPropertyValue('--bs-main-color-primary').trim() || '#1d4ed8';
+const STATUS_PALETTE = ['#1d4ed8', '#16a34a', '#6d28d9', '#64748b', '#d97706', '#dc2626'];
+
+const barLabelPlugin = {
+  id: 'barLabels',
+  afterDatasetsDraw(chart) {
+    const ctx = chart.ctx;
+    chart.data.datasets.forEach((dataset, di) => {
+      chart.getDatasetMeta(di).data.forEach((bar, i) => {
+        const value = dataset.data[i];
+        if (!value) return;
+        ctx.save();
+        ctx.fillStyle = '#374151';
+        ctx.font = '600 11px sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+        ctx.fillText(value, bar.x, bar.y - 3);
+        ctx.restore();
+      });
+    });
+  }
+};
+
+new Chart(document.getElementById('chart-grade'), {
+  type: 'bar', plugins: [barLabelPlugin],
+  data: { labels: _grade_labels, datasets: [{ label: 'English Learners', data: _grade_counts, backgroundColor: PRIMARY, borderRadius: 5, borderSkipped: false }] },
+  options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, layout: { padding: { top: 20 } },
+    scales: { y: { beginAtZero: true, ticks: { precision: 0, color: '#737373', font: { size: 12 } }, grid: { color: '#e5e5e5' } }, x: { ticks: { color: '#737373', font: { size: 12 } }, grid: { display: false } } } }
+});
+
+new Chart(document.getElementById('chart-status'), {
+  type: 'doughnut',
+  data: { labels: _status_labels, datasets: [{ data: _status_counts, backgroundColor: STATUS_PALETTE, borderWidth: 2, borderColor: '#fff' }] },
+  options: {
+    responsive: true, maintainAspectRatio: false, cutout: '62%',
+    plugins: {
+      legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } },
+      tooltip: { callbacks: {
+        label: ctx => ` ${ctx.label}: ${ctx.parsed} (${ctx.dataset.data.reduce((a,b)=>a+b,0) ? ((ctx.parsed / ctx.dataset.data.reduce((a,b)=>a+b,0))*100).toFixed(1) : 0}%)`
+      }}
+    }
+  }
+});
+
+function printDashboard() {
+  const body = document.querySelector('.card-body');
+  const PRINT_CHART_H = '150px';
+  const swaps = [];
+  document.querySelectorAll('.chart-wrap canvas').forEach(canvas => {
+    const wrap = canvas.closest('.chart-wrap');
+    const img = document.createElement('img');
+    img.src = canvas.toDataURL('image/png');
+    img.style.cssText = 'width:100%;height:100%;object-fit:fill;display:block;';
+    canvas.insertAdjacentElement('afterend', img);
+    canvas.style.display = 'none';
+    if (wrap) { wrap._ph = wrap.style.height; wrap.style.height = PRINT_CHART_H; }
+    swaps.push({ canvas, img, wrap });
+  });
+  body.style.zoom = '1'; void body.offsetHeight;
+  const PAGE_W = Math.round((297 - 0.8) / 25.4 * 96);
+  const PAGE_H = Math.round((210 - 0.8) / 25.4 * 96);
+  body.style.zoom = Math.min(PAGE_W / body.scrollWidth, PAGE_H / body.scrollHeight, 1).toFixed(4);
+  setTimeout(() => {
+    window.print();
+    setTimeout(() => {
+      body.style.zoom = '';
+      swaps.forEach(({ canvas, img, wrap }) => { canvas.style.display = ''; img.remove(); if (wrap) wrap.style.height = wrap._ph; });
+    }, 500);
+  }, 250);
+}
+</script>
+
+{% endblock %}
