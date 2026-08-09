@@ -1718,11 +1718,18 @@ hr.horizontal.gray-light { background-image: linear-gradient(to right, rgba(0,0,
 
 .nav-cat-list {
   padding-top: 10px;
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid rgba(255,255,255,0.14);
 }
 
 .main-content, .sidenav { transition: all 0.25s cubic-bezier(0.4,0,0.2,1); }
 .sidenav { z-index: 9999; }
+/* Belt-and-suspenders: pin the sidebar fill by ID with !important so no
+   possible class-based conflict (or a browser still holding a stale cached
+   copy of an older rule) can leave it showing anything but the brand navy. */
+#sidenav-main {
+  background-color: var(--bs-main-color-primary) !important;
+  background-image: none !important;
+}
 .sidenav .navbar-brand, .sidenav .navbar-heading { display: block; }
 .sidenav-footer .card.card-background:after { opacity: 0.65; }
 
@@ -1735,14 +1742,13 @@ hr.horizontal.gray-light { background-image: linear-gradient(to right, rgba(0,0,
 .navbar-vertical .navbar-brand > img,
 .navbar-vertical .navbar-brand-img { max-width: 100%; max-height: 2rem; }
 
-/* The sidebar itself is light (bg-white in the markup) — links are muted
-   navy-gray by default, not white-on-transparent, which is what this block
-   assumed under the original dark-sidebar template. */
+/* The sidebar fills with the brand navy (bg-gradient-main, flat — see that
+   rule) — links are light on the dark fill, not muted navy-gray on white. */
 .navbar-vertical .navbar-nav .nav-link {
   padding-left: 0.875rem; padding-right: 0.875rem;
   font-weight: 500;
   font-size: 0.875rem;
-  color: var(--color-text-muted);
+  color: rgba(255,255,255,0.78);
   display: flex; align-items: center; white-space: nowrap;
   border-radius: var(--radius-md);
   margin: 1px 0.5rem;
@@ -1750,8 +1756,8 @@ hr.horizontal.gray-light { background-image: linear-gradient(to right, rgba(0,0,
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 .navbar-vertical .navbar-nav .nav-link:hover {
-  background-color: var(--color-bg);
-  color: var(--color-text);
+  background-color: rgba(255,255,255,0.08);
+  color: #fff;
 }
 .navbar-vertical .navbar-nav .nav-link > i { min-width: 1rem; font-size: 1.1rem; text-align: center; opacity: 0.85; }
 .navbar-vertical .navbar-nav .nav-link .dropdown-menu { border: none; }
@@ -1761,10 +1767,10 @@ hr.horizontal.gray-light { background-image: linear-gradient(to right, rgba(0,0,
 .navbar-vertical .navbar-heading {
   padding-top: 0.5rem; padding-bottom: 0.5rem;
   font-size: 0.65rem;
-  font-weight: 700;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--color-text-subtle);
+  color: #fff;
 }
 
 /* Sidenav: navbar-expand-xs (used breakpoint) */
@@ -1803,19 +1809,19 @@ hr.horizontal.gray-light { background-image: linear-gradient(to right, rgba(0,0,
   padding-top: 0.45rem; padding-bottom: 0.45rem;
 }
 
-/* Active nav link — tinted background + left accent bar, not a solid pill.
+/* Active nav link — tinted background + light accent bar, not a solid pill.
    Reads as "you are here" without the page needing to shout. */
 .navbar-vertical .navbar-nav .nav-link.active {
   font-weight: 600;
-  color: var(--bs-main-color-primary);
-  background-color: rgba(19,40,74,0.07);
-  border-left-color: var(--bs-main-color-primary);
+  color: #fff;
+  background-color: rgba(255,255,255,0.14);
+  border-left-color: #fff;
   border-radius: 0 var(--radius-md) var(--radius-md) 0;
 }
 .navbar-vertical .navbar-nav .nav-link.active > i { opacity: 1; }
 
-.navbar-vertical.bg-white {
-  box-shadow: 1px 0 0 0 var(--color-border);
+.navbar-vertical.bg-gradient-main {
+  box-shadow: var(--shadow-lg);
   border: none;
 }
 
