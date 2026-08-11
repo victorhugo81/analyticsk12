@@ -34,6 +34,8 @@
           </div>
 
           <div class="row justify-content-between">
+            {% set my_sites = ([current_user.site] + current_user.sites) | unique(attribute='id') | list %}
+            {% if current_user.has_all_site_access %}
             <div class="col">
               <label class="filter-labels text-sm mb-0">Filter By Site</label>
               <form method="get" class="d-flex">
@@ -43,13 +45,30 @@
                 <select name="site_filter" class="form-select-box form-select" onchange="this.form.submit()">
                   <option value="">All Sites</option>
                   {% for site in sites %}
-                  <option value="{{ site.id }}" {% if request.args.get('site_filter', '')|int == site.id %}selected{% endif %}>
+                  <option value="{{ site.id }}" {% if site_filter|int == site.id %}selected{% endif %}>
                     {{ site.site_name }}
                   </option>
                   {% endfor %}
                 </select>
               </form>
             </div>
+            {% elif my_sites|length > 1 %}
+            <div class="col">
+              <label class="filter-labels text-sm mb-0">Filter By Site</label>
+              <form method="get" class="d-flex">
+                <input type="hidden" name="search" value="{{ request.args.get('search', '') }}">
+                <input type="hidden" name="grade_filter" value="{{ request.args.get('grade_filter', '') }}">
+                <input type="hidden" name="dept_filter" value="{{ dept_filter }}">
+                <select name="site_filter" class="form-select-box form-select" onchange="this.form.submit()">
+                  {% for site in my_sites %}
+                  <option value="{{ site.id }}" {% if site_filter|int == site.id %}selected{% endif %}>
+                    {{ site.site_name }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </form>
+            </div>
+            {% endif %}
             <div class="col mb-4">
               <label class="filter-labels text-sm mb-0">Filter By Grade Level</label>
               <form method="get" class="d-flex">

@@ -63,9 +63,14 @@
                             {{ form.status(class="form-select-box form-select") }}
                         </div>
                         <div class="col-12 col-sm-6 col-lg-4">
-                            <span aria-hidden="true" class="text-danger ms-1">*</span>      
+                            <span aria-hidden="true" class="text-danger ms-1">*</span>
                             {{ form.site_id.label(class="form-label") }}
                             {{ form.site_id(class="form-select-box form-select") }}
+                        </div>
+                        <div class="col-12 col-sm-6 col-lg-4">
+                            {{ form.sites.label(class="form-label") }}
+                            {{ form.sites(class="form-select-box form-select", multiple="multiple") }}
+                            <p class="form-text text-muted mt-1">Optional — for a School Administrator (or anyone) who needs access to more than one school, in addition to the primary Site above.</p>
                         </div>
                     </div>
 

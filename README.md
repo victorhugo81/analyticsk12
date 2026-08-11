@@ -24,9 +24,9 @@ AnalyticsK12 is a K-12 school district analytics platform built with Flask and M
 - **Bulk CSV import** — Upload `sites.csv`, `demographics.csv`, `absences.csv`, `behavioral_incidents.csv`, `grades.csv`, `staff.csv`, `courses.csv`, `master_schedule.csv`, `students_schedule.csv`, `parents.csv`, and `users.csv` individually or together. Files are processed in dependency order automatically, with a processing modal and result summary shown for large uploads.
 - **FTP integration** — Configure an FTP server and schedule automatic imports with per-day-of-week scheduling, start/stop dates, and last-run status tracking.
 - **Organization settings** — Configure organization name, logo, SMTP email, FTP connection, academic calendar (current school year, first/last school day), graduation credit requirements, and dashboard card visibility.
-- **Role-based access control** — Admin, Specialist, Technician, and User roles with route-level enforcement.
+- **Role-based access control** — Admin, District Administrator, School Administrator, Teacher, and Staff roles with route-level enforcement. Only Admin and District Administrator can view data across every school; School Administrator can be assigned to more than one campus by an Admin/District Administrator, everyone else is scoped to their own site.
 - **Encrypted credentials** — User email addresses, SMTP passwords, and FTP credentials stored encrypted using Fernet symmetric encryption.
-- **Login security** — Rate limiting, account lockout after repeated failures, forced password change on first login, minimum 12-character complexity requirement.
+- **Login security** — Rate limiting, account lockout after repeated failures, admin-initiated account unlock, forced password change on first login, minimum 12-character complexity requirement.
 - **Session-based global filters** — School year, site, snap date, and student status filters persist across all pages for the session.
 - **Upload log** — Every bulk import is logged with added/updated counts, uploader, timestamp, and error details.
 
@@ -144,6 +144,8 @@ Graduation Status also depends on **Graduation Settings** (Organization → Grad
 - SMTP and FTP passwords encrypted at rest
 - Forced password change on first login for bulk-created users
 - Security headers applied via `after_request` in `main.py`
+- Site-scoped data access — non-Admin/District-Administrator roles can only view or export students, teachers, courses, and incidents at the school(s) they're assigned to, enforced server-side (not just hidden in the UI)
+- Bulk student-data exports (`/students/export/csv`) are recorded in an audit log (who, when, filters used, record count) for FERPA accountability
 
 ---
 

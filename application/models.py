@@ -185,17 +185,48 @@ class User(db.Model, UserMixin):
     rm_num = db.Column(db.String(45), nullable=True)
     role_id = db.Column(db.Integer, db.ForeignKey('role.id', ondelete='CASCADE'), nullable=False)
     site_id = db.Column(db.Integer, db.ForeignKey('site.id', ondelete='CASCADE'), nullable=False)
+    # Extra sites beyond the required "primary" site_id above — see user_site.
+    sites = db.relationship('Site', secondary='user_site', backref=db.backref('assigned_users', lazy=True))
 
     def get_full_name(self):
         return f"{self.first_name} {self.middle_name or ''} {self.last_name}".strip()
-    
+
     @property
     def is_admin(self):
         return self.role and self.role.role_name.lower() == "admin"
 
     @property
+    def is_district_admin(self):
+        return self.role and self.role.role_name.lower() == "district administrator"
+
+    @property
+    def is_school_admin(self):
+        return self.role and self.role.role_name.lower() == "school administrator"
+
+    @property
     def is_tech_role(self):
-        return self.role and self.role.role_name.lower() in ["specialist", "technician"]
+        return self.role and self.role.role_name.lower() in ["district administrator", "school administrator"]
+
+    @property
+    def has_all_site_access(self):
+        """Admin and District Administrator can view/select any site, or all sites
+        (a blank site filter) at once — every other role is restricted to
+        allowed_site_ids."""
+        return bool(self.is_admin or self.is_district_admin)
+
+    @property
+    def allowed_site_ids(self):
+        """Site IDs this user may view: their primary site plus any extra sites
+        assigned via `sites` (e.g. a School Administrator covering several
+        campuses). Irrelevant for has_all_site_access users, who aren't
+        restricted to this set."""
+        ids = {self.site_id}
+        ids.update(s.id for s in self.sites)
+        return ids
+
+    @property
+    def is_locked(self):
+        return bool(self.locked_until and self.locked_until > _utcnow())
 
 
 class Role(db.Model):
@@ -223,6 +254,14 @@ class Site(db.Model):
 
 
 # Association tables for many-to-many relationships
+user_site = db.Table('user_site',
+    # Extra site assignments beyond User.site_id (the required "primary" site) —
+    # e.g. a School Administrator overseeing several campuses. See
+    # User.sites / User.allowed_site_ids.
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), primary_key=True),
+    db.Column('site_id', db.Integer, db.ForeignKey('site.id', ondelete='CASCADE'), primary_key=True),
+)
+
 student_course = db.Table('student_course',
     db.Column('student_id', db.Integer, db.ForeignKey('student.id', ondelete='CASCADE'), primary_key=True),
     db.Column('course_id',  db.Integer, db.ForeignKey('course.id',  ondelete='CASCADE'), primary_key=True),
@@ -428,3 +467,20 @@ class BulkUploadLog(db.Model):
     error_message = db.Column(db.Text, nullable=True)
 
     uploader = db.relationship('User', foreign_keys=[uploaded_by_id])
+
+
+class AuditLog(db.Model):
+    """Records access to bulk/exportable student data for FERPA accountability.
+
+    user_id is nullable so a log row survives user deletion (ondelete SET NULL) —
+    losing the audit trail when an account is removed would defeat its purpose.
+    """
+    id          = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id     = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+    action      = db.Column(db.String(50), nullable=False)
+    detail      = db.Column(db.String(255), nullable=True)
+    record_count = db.Column(db.Integer, nullable=True)
+    ip_address  = db.Column(db.String(45), nullable=True)
+    created_at  = db.Column(db.DateTime, default=_utcnow, nullable=False)
+
+    user = db.relationship('User', foreign_keys=[user_id])

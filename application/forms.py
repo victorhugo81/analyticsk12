@@ -17,6 +17,10 @@ class UserForm(FlaskForm):
     email = StringField('Email:', validators=[DataRequired(), Email()])
     role_id = SelectField('Role:', coerce=int, choices=[], validators=[DataRequired()])
     site_id = SelectField('Site:', coerce=int, choices=[], validators=[DataRequired()])
+    # Extra sites beyond the primary `site_id` — e.g. a School Administrator who
+    # oversees several campuses. Only settable by Admin/District Administrator
+    # (enforced in the route, not just the form) — see User.sites/allowed_site_ids.
+    sites = SelectMultipleField('Additional Schools:', coerce=int, choices=[], validators=[Optional()])
     rm_num = StringField('Room:', validators=[Optional()])
     status = SelectField('Status:',
         choices=[('Active', 'Active'), ('Inactive', 'Inactive')],

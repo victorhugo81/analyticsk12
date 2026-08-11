@@ -4,7 +4,7 @@ from flask_login import login_user, login_required, logout_user, current_user
 from flask_paginate import Pagination, get_page_args
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
-from .models import User, Role, Site, Notification, Organization, BulkUploadLog, Student, Teacher, Course, Parent, Absence, Incident, Grade, student_course, GraduationRequirement, StudentSubjectCredits, Intervention
+from .models import User, Role, Site, Notification, Organization, BulkUploadLog, AuditLog, Student, Teacher, Course, Parent, Absence, Incident, Grade, student_course, GraduationRequirement, StudentSubjectCredits, Intervention
 from .forms import LoginForm, UserForm, RoleForm, SiteForm, NotificationForm, OrganizationForm, EmailConfigForm, StudentForm, TeacherForm, CourseForm, ParentForm, GraduationRequirementForm, InterventionForm
 from .utils import validate_password, validate_file_upload, encrypt_mail_password, decrypt_mail_password, hash_email
 from .email_utils import send_temp_password_email, send_password_updated_email
@@ -101,6 +101,15 @@ def set_session_defaults():
             session['active_schoolyr'] = row[0] if row else ''
         except Exception:
             session['active_schoolyr'] = ''
+    # Only Admin/District Administrator may view "all schools" (blank filter) or
+    # a site outside their assignment. Everyone else is pinned to one of their
+    # allowed_site_ids on every request, regardless of what a stale/shared
+    # session value holds — this is what every dashboard route's
+    # `session.get('active_site_filter', '')` read ultimately relies on.
+    if not current_user.has_all_site_access:
+        allowed = {str(i) for i in current_user.allowed_site_ids}
+        if session.get('active_site_filter', '') not in allowed:
+            session['active_site_filter'] = str(current_user.site_id)
 
 
 @routes_blueprint.route('/set_school_year')
@@ -120,7 +129,12 @@ def set_school_year():
 @routes_blueprint.route('/set_site_filter')
 @login_required
 def set_site_filter():
-    session['active_site_filter'] = request.args.get('sf', '').strip()
+    sf = request.args.get('sf', '').strip()
+    if not current_user.has_all_site_access:
+        allowed = {str(i) for i in current_user.allowed_site_ids}
+        if sf not in allowed:
+            sf = str(current_user.site_id)
+    session['active_site_filter'] = sf
     return redirect(request.referrer or url_for('routes.index'))
 
 
@@ -219,24 +233,29 @@ def is_admin():
     """
     Check if the current user has admin privileges.
     Abort with 403 Forbidden if the user is not an admin.
-    
-    Assumes role_id 1 represents Admin status.
+
+    Delegates to User.is_admin (compares by role NAME, not role_id) so this
+    stays correct even if role ids are ever reseeded/reordered — see
+    User.is_admin/is_tech_role in models.py for the single source of truth.
     """
-    if not current_user.is_authenticated or current_user.role_id != 1:  # Assuming 1 = Admin
+    if not current_user.is_authenticated or not current_user.is_admin:
         abort(403)
 
 def is_tech_role():
     """
     Check if the current user has a technical role.
     Abort with 403 Forbidden if the user is not in a tech role.
-    
-    Technical roles are Specialist (role_id=2) and Technician (role_id=3).
+
+    Technical roles are District Administrator and School Administrator.
+    Delegates to User.is_tech_role (name-based) for the same reason as
+    is_admin() above.
     """
-    if not current_user.is_authenticated or current_user.role_id not in [2, 3]:  # Assuming 2 = Specialist, 3 = Technician
+    if not current_user.is_authenticated or not current_user.is_tech_role:
         abort(403)
 
 def require_site_access(site_id):
-    """Abort 403 unless the current user is an admin or belongs to the given site.
+    """Abort 403 unless the current user has all-site access or is assigned to
+    the given site.
 
     Detail pages (student/teacher/course/parent) look records up by numeric ID with no
     other scoping — without this, any authenticated user from any site could view any
@@ -244,10 +263,22 @@ def require_site_access(site_id):
     by the session's active-site selection; this is the same boundary enforced at the
     object level, which a URL can't bypass.
     """
-    if current_user.is_admin:
+    if current_user.has_all_site_access:
         return
-    if current_user.site_id != site_id:
+    if site_id not in current_user.allowed_site_ids:
         abort(403)
+
+def _clamp_site_filter(site_filter):
+    """Only Admin/District Administrator may request another site's (or all
+    sites' — blank) data via a site_filter URL param. Every other role is
+    restricted to one of their allowed_site_ids, same rule the before_request
+    hook enforces for the session-based filter — this covers the handful of
+    list routes that read site_filter straight from the URL instead of session.
+    """
+    if current_user.has_all_site_access:
+        return site_filter
+    allowed = {str(i) for i in current_user.allowed_site_ids}
+    return site_filter if site_filter in allowed else str(current_user.site_id)
 
 # ****************** Forbidden Error Page *******************************
 @routes_blueprint.app_errorhandler(403)
@@ -708,6 +739,7 @@ def add_user():
     form = UserForm()
     form.role_id.choices = [(role.id, role.role_name) for role in Role.query.all()]
     form.site_id.choices = [(site.id, site.site_name) for site in Site.query.all()]
+    form.sites.choices = [(site.id, site.site_name) for site in Site.query.all()]
     if form.validate_on_submit():
         # Check if a user with the same email already exists
         _key = current_app.config['SECRET_KEY']
@@ -734,6 +766,11 @@ def add_user():
             role_id=form.role_id.data,
             password=hashed_password
         )
+        # Additional site assignments (e.g. a School Administrator covering
+        # several campuses) — reachable only by Admin, since add_user() itself
+        # is Admin-gated above.
+        if form.sites.data:
+            new_user.sites = Site.query.filter(Site.id.in_(form.sites.data)).all()
         db.session.add(new_user)
         db.session.commit()
         flash('User added successfully!', 'success')
@@ -779,6 +816,11 @@ def edit_user(user_id):
     # Populate dynamic choices for role_id and site_id
     form.role_id.choices = [(role.id, role.role_name) for role in Role.query.all()]
     form.site_id.choices = [(site.id, site.site_name) for site in Site.query.all()]
+    form.sites.choices = [(site.id, site.site_name) for site in Site.query.all()]
+    if request.method == 'GET':
+        # SelectMultipleField.process_data expects raw ids, not Site objects —
+        # obj=user above can't populate this from the `sites` relationship.
+        form.sites.data = [s.id for s in user.sites]
     if form.validate_on_submit():
         # Check if a user with the same email already exists
         _key = current_app.config['SECRET_KEY']
@@ -816,6 +858,16 @@ def edit_user(user_id):
         if user.role_id != form.role_id.data:
             user.role_id = form.role_id.data
             changes_made = True
+        # Only Admin/District Administrator may reassign which schools a user
+        # can access — a School Administrator reaching this page via
+        # is_tech_role can view/edit their own basic info but not grant
+        # themselves (or anyone else) additional sites.
+        if current_user.is_admin or current_user.is_district_admin:
+            new_site_ids = set(form.sites.data or [])
+            current_site_ids = {s.id for s in user.sites}
+            if new_site_ids != current_site_ids:
+                user.sites = Site.query.filter(Site.id.in_(new_site_ids)).all() if new_site_ids else []
+                changes_made = True
         # Validate and update password only if provided
         password_changed = False
         if form.password.data:
@@ -850,6 +902,23 @@ def delete_user(user_id):
     db.session.delete(user)
     db.session.commit()
     flash('User deleted successfully!', 'warning')
+    return redirect(url_for('routes.users'))
+
+
+# ****************** Unlock User Account (Admin) *******************************
+@routes_blueprint.route('/unlock_user/<int:user_id>', methods=['POST'])
+@login_required
+def unlock_user(user_id):
+    is_admin()  # Ensure only admins can access this route
+    user = User.query.get_or_404(user_id)
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    db.session.commit()
+    security_logger.info(
+        'Account unlocked by admin: user_id=%s admin_id=%s ip=%s',
+        user.id, current_user.id, request.remote_addr
+    )
+    flash(f'Account for {user.first_name} {user.last_name} has been unlocked.', 'success')
     return redirect(url_for('routes.users'))
 
 
@@ -3130,6 +3199,7 @@ def students():
     search          = request.args.get('search', '').strip()
     _url_site       = request.args.get('site_filter', '').strip()
     site_filter     = _url_site if _url_site else session.get('active_site_filter', '')
+    site_filter     = _clamp_site_filter(site_filter)
     grade_filter    = request.args.get('grade_filter', '').strip()
     subgroups       = [s.strip() for s in request.args.getlist('subgroup') if s.strip()]
     english_status  = [s.strip() for s in request.args.getlist('english_status') if s.strip()]
@@ -3216,6 +3286,9 @@ def students():
 def students_export_csv():
     import csv, io
     search          = request.args.get('search', '').strip()
+    # session['active_site_filter'] is already restricted to one of the user's
+    # allowed_site_ids by the before_request hook — only Admin/District
+    # Administrator can export another site's (or all sites') data.
     site_filter     = session.get('active_site_filter', '')
     grade_filter    = request.args.get('grade_filter', '').strip()
     subgroups       = [s.strip() for s in request.args.getlist('subgroup') if s.strip()]
@@ -3289,6 +3362,17 @@ def students_export_csv():
             'Yes' if s.sed504  else 'No',
             s.site.site_name, s.schoolyr or '', s.status,
         ])
+    db.session.add(AuditLog(
+        user_id=current_user.id,
+        action='student_export_csv',
+        detail=f"site={site_filter or 'all'}; search={search!r}; subgroups={subgroups}; "
+               f"grade={grade_filter or 'all'}; english_status={english_status or 'all'}; "
+               f"status={status_filter}; schoolyr={schoolyr_filter or 'all'}",
+        record_count=len(rows),
+        ip_address=request.remote_addr,
+    ))
+    db.session.commit()
+
     resp = make_response(out.getvalue())
     resp.headers['Content-Disposition'] = 'attachment; filename=students_export.csv'
     resp.headers['Content-Type'] = 'text/csv; charset=utf-8'
@@ -5912,6 +5996,14 @@ def incidents():
     page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
     search      = request.args.get('search', '').strip()
     site_filter = request.args.get('site_filter', '').strip()
+    if not current_user.has_all_site_access:
+        # Incident.site stores the site acronym string, not the numeric site_id
+        # every other table uses — _clamp_site_filter doesn't apply here.
+        allowed_acronyms = {
+            s.site_acronyms for s in Site.query.filter(Site.id.in_(current_user.allowed_site_ids)).all()
+        }
+        if site_filter not in allowed_acronyms:
+            site_filter = current_user.site.site_acronyms
     type_filter = request.args.get('type_filter', '').strip()
     yr_filter   = request.args.get('schoolyr', '').strip() or session.get('active_schoolyr', '')
 
@@ -5955,7 +6047,7 @@ def incidents():
 def teachers():
     page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
     search      = request.args.get('search', '').strip()
-    site_filter = request.args.get('site_filter', '').strip()
+    site_filter = _clamp_site_filter(request.args.get('site_filter', '').strip())
     dept_filter = request.args.get('dept_filter', '').strip()
 
     query = Teacher.query
@@ -5979,6 +6071,7 @@ def teachers():
     return render_template('teachers.html',
         teachers=teachers_q, pagination=pagination, per_page=per_page,
         sites=sites, departments=departments, dept_filter=dept_filter,
+        site_filter=site_filter,
         current_page_name='Teachers')
 
 
@@ -6073,7 +6166,7 @@ def delete_teacher(teacher_id):
 def courses():
     page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
     search       = request.args.get('search', '').strip()
-    site_filter  = request.args.get('site_filter', '').strip()
+    site_filter  = _clamp_site_filter(request.args.get('site_filter', '').strip())
     grade_filter = request.args.get('grade_filter', '').strip()
     dept_filter  = request.args.get('dept_filter', '').strip()
 
@@ -6099,7 +6192,7 @@ def courses():
     return render_template('courses.html',
         courses=courses_q, pagination=pagination, per_page=per_page,
         sites=sites, grades=_GRADE_LIST, departments=departments,
-        dept_filter=dept_filter, current_page_name='Courses')
+        dept_filter=dept_filter, site_filter=site_filter, current_page_name='Courses')
 
 
 @routes_blueprint.route('/add_course', methods=['GET', 'POST'])
@@ -6210,8 +6303,8 @@ def parent_details(parent_id):
     parent = Parent.query.get_or_404(parent_id)
     # Parent has no site_id of its own — it's in scope for a site if at least one of
     # the parent's linked students is enrolled there (siblings can span sites).
-    if not current_user.is_admin and not any(
-        s.site_id == current_user.site_id for s in parent.students
+    if not current_user.has_all_site_access and not any(
+        s.site_id in current_user.allowed_site_ids for s in parent.students
     ):
         abort(403)
     return render_template('parent_details.html', parent=parent,

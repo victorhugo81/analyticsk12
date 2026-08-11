@@ -1137,7 +1137,7 @@ with app.app_context():
         if True:
             for a in ABSENCES:
                 site_id = site_map[a['site_code']].id
-                a_data  = {k: v for k, v in a.items() if k != 'site_code'}
+                a_data  = {k: v for k, v in a.items() if k not in ('site_code', 'abs_abbr')}
                 db.session.add(Absence(site_id=site_id, **a_data))
             db.session.flush()
             print(f"  Absences added:  {len(ABSENCES)}")

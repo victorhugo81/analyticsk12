@@ -71,8 +71,8 @@ python installation/seed_academic_data.py
 
 All routes live in `application/routes.py` under one blueprint (`routes_blueprint`). The file is large (~5800+ lines) and organized into labeled sections:
 
-- **Auth** — login, logout, set-password, account lockout
-- **Users / Roles / Sites / Notifications / Organization** — admin management, incl. dashboard **Card Visibility** (`card_visibility()` — toggles `Organization.show_*` flags off a `cards` list, no per-card branching needed)
+- **Auth** — login, logout, set-password, account lockout (`unlock_user()` lets an Admin clear `failed_login_attempts`/`locked_until` for another user — `/unlock_user/<id>`, gated by `is_admin()`)
+- **Users / Roles / Sites / Notifications / Organization** — admin management, incl. dashboard **Card Visibility** (`card_visibility()` — toggles `Organization.show_*` flags off a `cards` list, no per-card branching needed). Roles: `Admin`, `District Administrator`, `School Administrator`, `Teacher`, `Staff` (seeded in `installation/seed_data.py` — see Role-Based Site Access below for what each can see)
 - **Global session filters** — `/set_school_year`, `/set_site_filter`, `/set_snap_date`, `/set_status_filter` (store to session, redirect back)
 - **Context processor** — injects `active_schoolyr`, `active_site_filter`, `active_snap_date`, `active_status_filter`, `global_sites`, `global_school_years` into every template
 - **Students** — list (paginated, multi-filter), detail (`student_details.html` — tabbed: Courses, Absences, Incidents, Interventions, Grades, Graduation, Parents, Other), edit, export CSV (`/students/export/csv`)
@@ -100,7 +100,8 @@ Key models and their notable fields:
 | Model | Notes |
 |---|---|
 | `Student` | `status` is a computed `@property` from `enter_date`/`exit_date` — there is no `status` column in DB. Unique constraint is on `(student_id, schoolyr)`, **not** `student_id` alone — the same student can have one record per school year. `english_status` codes (`EO`/`IFEP`/`EL`/`RFEP`/`TBD`) are defined once in `forms.py` `_ENGLISH_STATUS_CHOICES` — no time-of-reclassification field exists. |
-| `User` | Email stored encrypted (`cryptography.fernet`); password hashed with scrypt |
+| `User` | Email stored encrypted (`cryptography.fernet`); password hashed with scrypt. `site_id` is the required "primary" site; `sites` is a `user_site` many-to-many for *extra* site assignments (e.g. a School Administrator covering several campuses) — see Role-Based Site Access below. `is_admin`/`is_district_admin`/`is_school_admin`/`is_tech_role`/`has_all_site_access` are all computed from `role.role_name` (never `role_id`, and never hardcode a role's numeric id — see Key Conventions). `is_locked` reflects `locked_until`/`failed_login_attempts` (set by the login-lockout logic; cleared by `unlock_user()`). |
+| `AuditLog` | Records who exported/accessed bulk student PII (currently: `/students/export/csv`) — `user_id`, `action`, `detail` (filters used), `record_count`, `ip_address`, `created_at`. Exists for FERPA accountability (who accessed/disclosed a student's education record), not general app logging — don't repurpose it for unrelated events. |
 | `Organization` | Stores SMTP, FTP config (encrypted), academic calendar (`current_school_year`, `first_school_day`, `last_school_day`), `show_*` dashboard-card-visibility booleans (config overrides `app.config` at startup), and `grad_auto_calculate_credits` (when `True`, the Graduation Status total-credits-required figure is summed live from `GraduationRequirement` rows instead of the fixed `grad_credits_required` fallback) |
 | `Absence` | Linked to student via `ssid` string (not FK), site via `site_id` FK. No `abs_abbr` column. Indexed on `ssid`, `(school_yr, site_id)`, and `(school_yr, ssid)` — the table is 270K+ rows district-wide and every dashboard query filters by `school_yr` then groups by `ssid` or `site_id`, so these were a real perf fix, not routine. |
 | `Incident` | Linked to student via `sisid` string (not FK); `site` is stored as the site acronym string |
@@ -119,6 +120,20 @@ The context processor reads these four session keys and injects them into every 
 - `active_status_filter` — `"active"` | `"inactive"` | `"all"`
 
 Routes that support site filtering from the URL (e.g. dashboard table links) check `request.args.get('site_filter')` first, then fall back to session.
+
+### Role-Based Site Access
+
+Only `Admin`/`District Administrator` (`User.has_all_site_access`) may view "all sites" (a blank filter) or a site outside their own assignment. Every other role — `School Administrator`, `Teacher`, `Staff` — is restricted to `User.allowed_site_ids` (their primary `site_id` plus any extra sites in `User.sites`; a School Administrator is the one role routinely assigned more than one). This is enforced at several layers, all in `routes.py`, and a new route/query touching `site_id` should go through one of these rather than inventing a new check:
+
+- **`set_session_defaults()`** (a `before_request` hook) clamps `session['active_site_filter']` to an allowed value on *every* request — this is what every dashboard route's `session.get('active_site_filter', '')` read ultimately relies on, with no per-route code needed.
+- **`_clamp_site_filter(site_filter)`** — for the handful of list routes that read `site_filter` straight from a URL param instead of session (`/students`, `/teachers`, `/courses`; `/students/export/csv` relies on the session value, already clamped by the hook above).
+- **`require_site_access(site_id)`** — 403s detail pages (student/teacher/course/parent) that look up a record by numeric ID with no other scoping.
+- **`/incidents`** is a special case: `Incident.site` stores the site **acronym** string, not the numeric `site_id` every other table uses, so it clamps against `{Site.site_acronyms for site in allowed_site_ids}` instead of calling `_clamp_site_filter()`.
+- **`/set_site_filter`** rejects a restricted user's attempt to select a disallowed site at the source, so the session never even briefly holds it.
+
+Templates mirror this: the nav bar's global Site picker and the local "Filter By Site" dropdowns (Students/Incidents/Teachers/Courses) render one of three ways — full district picker (`has_all_site_access`), a picker scoped to just `current_user.sites` (multi-site users), or a fixed read-only site-name label (single-site users) — so a restricted user is never shown a control that would silently do nothing.
+
+`/users` (system/account administration) is deliberately **not** part of this — it's gated separately (`is_admin()`/`is_tech_role()`) and its own site filter is just a local list-narrowing control, not exposure of student data.
 
 ### Student Subgroup Filtering
 
@@ -189,7 +204,8 @@ Download templates live in `application/static/download/`.
 
 ## Key Conventions
 
-- **`site_filter` parameter**: In the students route, URL param `site_filter` overrides session. In all other routes it comes from session only.
+- **`site_filter` parameter**: In the students route, URL param `site_filter` overrides session. In all other routes it comes from session only. Regardless of source, the effective value is always restricted per-user — see Role-Based Site Access above; don't read `session['active_site_filter']` or `request.args['site_filter']` directly in a new route without clamping it.
+- **Role checks compare by name, never by `role_id`**: `is_admin()`/`is_tech_role()` in `routes.py` delegate to `User.is_admin`/`User.is_tech_role` (compare `role.role_name`, e.g. `"admin"`), not to a hardcoded `role_id` integer. `installation/seed_data.py` happens to seed `Admin` as id `1`, but nothing in the app should assume that — a reseed/reorder that changes ids would silently swap who has access with a numeric check, with no error. This already broke once (a role rename desynced a stale `role_id in [2, 3]` check from the name-based property it duplicated) — always add new role checks as a `User` property keyed on `role_name`.
 - **Ethnicity codes**: Stored as 3-digit strings (`'500'` = Hispanic/Latino, `'600'` = African American, etc.). The `ethnicity_table_data` variable is always a list of `(code, label, count)` tuples.
 - **Add pages removed**: `add_student`, `add_teacher`, `add_course`, `add_parent` routes redirect to their list pages — the templates were intentionally deleted. `Intervention` follows a similar contextual-add pattern deliberately: there's no bare "add intervention" page, only `/interventions/add/<student_id>` reached from Early Warning or a student's detail page.
 - **`student.status`**: Never filter with `Student.status == 'Active'` in SQL — it's a Python property. Use `enter_date`/`exit_date` conditions instead.

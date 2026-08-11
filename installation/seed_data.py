@@ -47,8 +47,8 @@ with app.app_context():
         # --- Roles ---
         roles = [
             ('1', 'Admin'),
-            ('2', 'Specialist'),
-            ('3', 'Technician'),
+            ('2', 'District Administrator'),
+            ('3', 'School Administrator'),
             ('4', 'Teacher'),
             ('5', 'Staff')
         ]

@@ -352,8 +352,10 @@
         </div>
 
         <!-- Site -->
+        {% set my_sites = ([current_user.site] + current_user.sites) | unique(attribute='id') | list %}
         <div class="d-flex align-items-center gap-1">
           <label class="text-xs text-muted mb-0" for="gf-site" style="white-space:nowrap;">Site:</label>
+          {% if current_user.has_all_site_access %}
           <select id="gf-site" class="form-select form-select-sm" style="min-width:155px;"
                   onchange="window.location='/set_site_filter?sf='+encodeURIComponent(this.value)">
             <option value="">All Sites</option>
@@ -361,6 +363,21 @@
             <option value="{{ s.id }}" {{ 'selected' if active_site_filter == s.id|string }}>{{ s.site_name }}</option>
             {% endfor %}
           </select>
+          {% elif my_sites|length > 1 %}
+          <!-- School Administrator assigned to more than one campus — can switch
+               between their own assigned sites, but not view every district site. -->
+          <select id="gf-site" class="form-select form-select-sm" style="min-width:155px;"
+                  onchange="window.location='/set_site_filter?sf='+encodeURIComponent(this.value)">
+            {% for s in my_sites %}
+            <option value="{{ s.id }}" {{ 'selected' if active_site_filter == s.id|string }}>{{ s.site_name }}</option>
+            {% endfor %}
+          </select>
+          {% else %}
+          <!-- Only Admin/District Administrator may view data across sites —
+               every other role is pinned server-side to their own site(s), so a
+               full picker would be misleading. -->
+          <span class="text-xs fw-bold" style="min-width:155px;">{{ current_user.site.site_name }}</span>
+          {% endif %}
         </div>
 
         <!-- Students Status -->

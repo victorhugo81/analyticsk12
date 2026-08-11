@@ -99,6 +99,13 @@
                                 {{ form.site_id(class="form-select-box form-select", disabled="disabled") }}
                             {% endif %}
                         </div>
+                        {% if current_user.is_admin or current_user.is_district_admin %}
+                        <div class="col-12 col-sm-6 col-lg-4">
+                            {{ form.sites.label(class="form-label") }}
+                            {{ form.sites(class="form-select-box form-select", multiple="multiple") }}
+                            <p class="form-text text-muted mt-1">Optional — additional schools this user can access, e.g. a School Administrator covering more than one campus.</p>
+                        </div>
+                        {% endif %}
                     </div>
 
                     <!-- Section: Security -->

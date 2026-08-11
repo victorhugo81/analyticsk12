@@ -35,6 +35,8 @@
           </div>
 
           <div class="row justify-content-between">
+            {% set my_sites = ([current_user.site] + current_user.sites) | unique(attribute='id') | list %}
+            {% if current_user.has_all_site_access %}
             <div class="col mb-4">
               <label class="filter-labels text-sm mb-0">Filter By Site</label>
               <form method="get" class="d-flex">
@@ -49,6 +51,23 @@
                 </select>
               </form>
             </div>
+            {% elif my_sites|length > 1 %}
+            <!-- Incident.site stores the site acronym, not the numeric id, so
+                 the picker uses each assigned site's acronym as its value. -->
+            <div class="col mb-4">
+              <label class="filter-labels text-sm mb-0">Filter By Site</label>
+              <form method="get" class="d-flex">
+                <input type="hidden" name="search"      value="{{ request.args.get('search', '') }}">
+                <input type="hidden" name="type_filter" value="{{ type_filter }}">
+                <input type="hidden" name="schoolyr"    value="{{ yr_filter }}">
+                <select name="site_filter" class="form-select-box form-select" onchange="this.form.submit()">
+                  {% for s in my_sites %}
+                  <option value="{{ s.site_acronyms }}" {% if site_filter == s.site_acronyms %}selected{% endif %}>{{ s.site_name }}</option>
+                  {% endfor %}
+                </select>
+              </form>
+            </div>
+            {% endif %}
             <div class="col mb-4">
               <label class="filter-labels text-sm mb-0">Filter By Type</label>
               <form method="get" class="d-flex">
