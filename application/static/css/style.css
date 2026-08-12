@@ -255,6 +255,10 @@ a.user-welcome {
   box-shadow: var(--shadow-md);
 }
 
+.warning-message-box span {
+  white-space: pre-line;
+}
+
 .alert-warning {
   background-color: var(--bs-warning);
   width: 95%;
