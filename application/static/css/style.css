@@ -255,10 +255,6 @@ a.user-welcome {
   box-shadow: var(--shadow-md);
 }
 
-.warning-message-box span {
-  white-space: pre-line;
-}
-
 .alert-warning {
   background-color: var(--bs-warning);
   width: 95%;
@@ -1493,6 +1489,37 @@ input.read-only { background: #f3f4f6 !important; color: var(--color-text) !impo
 .modal-title {
   font-size: 1.0625rem;
   font-weight: 600;
+}
+
+/* About modal */
+.about-modal-icon {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background-color: var(--bs-main-color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.about-modal-icon .material-symbols-rounded {
+  font-size: 2.25rem;
+  color: #fff;
+  opacity: 1;
+}
+.about-modal-icon img {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+}
+.about-modal-version {
+  display: inline-block;
+  background-color: var(--status-info-bg);
+  color: var(--bs-main-color-primary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+  padding: 0.4em 0.9em;
 }
 
 /* ==========================================================================

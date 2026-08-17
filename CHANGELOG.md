@@ -5,7 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+
+## [1.1.2] - 2026-08-16
+Added
+About modal, opened by clicking the footer copyright notice, showing the app name, description, version, and copyright year.
+Changed
+Sidebar logo is now centered.
+About modal's version number is now read from this changelog at runtime instead of being hardcoded in the template.
 
 ## [1.1.1] - 2026-04-26
 

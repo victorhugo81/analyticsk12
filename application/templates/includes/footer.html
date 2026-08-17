@@ -5,8 +5,11 @@
     <div class="row justify-content-end">
       <div class="col-12 text-end">
         <div class="copyright text-xs text-muted">
-          <span class="font-weight-bold">AnalyticsK12</span>
-          &copy; <script>document.write(new Date().getFullYear());</script>
+          <button type="button" class="btn btn-link p-0 text-xs text-muted text-decoration-none"
+                  data-bs-toggle="modal" data-bs-target="#aboutModal">
+            <span class="font-weight-bold">AnalyticsK12</span>
+            &copy; <span id="footer-copy-year"></span>
+          </button>
         </div>
       </div>
     </div>
@@ -26,6 +29,17 @@
     const alerts = document.querySelectorAll('.alert');
     alerts.forEach(alert => alert.classList.remove('show'));
   }, 5000); // Dismiss after 5 seconds
+</script>
+
+<!-- Copyright year (footer trigger + About modal) -->
+<script>
+(function () {
+  var year = new Date().getFullYear();
+  var footerYear = document.getElementById('footer-copy-year');
+  var aboutYear   = document.getElementById('about-copy-year');
+  if (footerYear) footerYear.textContent = year;
+  if (aboutYear)  aboutYear.textContent  = year;
+})();
 </script>
 
 

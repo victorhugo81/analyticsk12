@@ -1003,7 +1003,7 @@
 
 <!-- Result Modal -->
 <div class="modal fade" id="resultModal" tabindex="-1" aria-labelledby="resultModalTitle" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+  <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="resultModalTitle">
@@ -1145,73 +1145,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const body = document.getElementById('resultModalBody');
     let hasError = false;
-    // Per-file summary lines look like "Demographics: 12 added, 3 updated." — group
-    // consecutive lines matching that shape into a table; anything else (the headline,
-    // a skip-count callout) renders as a plain paragraph in its original position.
-    const rowPattern = /^([A-Za-z][A-Za-z ]*): (.+)$/;
-
     flashAlerts.forEach(alert => {
-        const isDanger = alert.classList.contains('alert-danger');
-        if (isDanger) hasError = true;
-        const text = alert.querySelector('span')?.textContent || alert.textContent.trim();
-        const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-
-        const segments = [];
-        lines.forEach((line, i) => {
-            // Never treat the first line as a table row — it's always the headline.
-            const match = i > 0 ? line.match(rowPattern) : null;
-            if (match) {
-                const last = segments[segments.length - 1];
-                if (last && last.type === 'rows') {
-                    last.rows.push([match[1], match[2]]);
-                } else {
-                    segments.push({ type: 'rows', rows: [[match[1], match[2]]] });
-                }
-            } else {
-                segments.push({ type: 'text', value: line });
-            }
-        });
-
-        segments.forEach(seg => {
-            if (seg.type === 'text') {
-                const p = document.createElement('p');
-                p.className = 'mb-2 ' + (isDanger ? 'text-danger' : 'text-dark');
-                p.textContent = seg.value;
-                body.appendChild(p);
-                return;
-            }
-            const wrap = document.createElement('div');
-            wrap.className = 'table-responsive mb-2';
-            const table = document.createElement('table');
-            table.className = 'table table-bordered table-sm text-sm align-middle mb-0';
-            const thead = document.createElement('thead');
-            thead.className = 'bg-light';
-            const headRow = document.createElement('tr');
-            ['File', 'Result'].forEach(label => {
-                const th = document.createElement('th');
-                th.className = 'text-uppercase text-xxs font-weight-bolder' + (label === 'File' ? ' ps-3' : '');
-                th.textContent = label;
-                headRow.appendChild(th);
-            });
-            thead.appendChild(headRow);
-            const tbody = document.createElement('tbody');
-            seg.rows.forEach(([label, detail]) => {
-                const tr = document.createElement('tr');
-                const tdLabel = document.createElement('td');
-                tdLabel.className = 'ps-3 font-weight-bold';
-                tdLabel.textContent = label;
-                const tdDetail = document.createElement('td');
-                tdDetail.textContent = detail;
-                tr.appendChild(tdLabel);
-                tr.appendChild(tdDetail);
-                tbody.appendChild(tr);
-            });
-            table.appendChild(thead);
-            table.appendChild(tbody);
-            wrap.appendChild(table);
-            body.appendChild(wrap);
-        });
-
+        if (alert.classList.contains('alert-danger')) hasError = true;
+        const p = document.createElement('p');
+        p.className = 'mb-2 ' + (alert.classList.contains('alert-danger') ? 'text-danger' : 'text-dark');
+        p.textContent = alert.querySelector('span')?.textContent || alert.textContent.trim();
+        body.appendChild(p);
         alert.remove();
     });
 

@@ -91,18 +91,52 @@
         <div class="row justify-content-end">
           <div class="col-12 text-end">
             <div class="copyright text-sm text-muted">
-              <span class="font-weight-bold">AnalyticsK12</span>
-              &copy; <span id="copy-year"></span>
+              <button type="button" class="btn btn-link p-0 text-sm text-muted text-decoration-none"
+                      data-bs-toggle="modal" data-bs-target="#aboutModal">
+                <span class="font-weight-bold">AnalyticsK12</span>
+                &copy; <span id="copy-year"></span>
+              </button>
             </div>
           </div>
         </div>
       </div>
     </footer>
 
+    <!-- About modal -->
+    <div class="modal fade" id="aboutModal" tabindex="-1" aria-labelledby="aboutModalTitle" aria-modal="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header border-0 pb-0">
+            <h5 class="modal-title visually-hidden" id="aboutModalTitle">About AnalyticsK12</h5>
+            <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body pt-0 pb-4 px-4 text-center">
+            <div class="about-modal-icon mx-auto mb-3">
+              <i class="material-symbols-rounded">insights</i>
+            </div>
+            <h4 class="fw-bold mb-3">AnalyticsK12</h4>
+            <p class="text-sm text-muted mb-4">
+              A K-12 school district analytics platform that centralizes student demographics, attendance,
+              discipline, grades and graduation progress, English Learner status, MTSS interventions,
+              staffing, and family contact data across multiple school sites.
+            </p>
+            <span class="badge about-modal-version mb-3">Version {{ app_version or 'unknown' }}</span>
+            <p class="text-xs text-muted mb-0">&copy; <span id="about-copy-year"></span> AnalyticsK12. All rights reserved.</p>
+          </div>
+          <div class="modal-footer border-0 pt-0 justify-content-end">
+            <button type="button" class="btn btn-white btn-sm px-4" data-bs-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script src="{{ url_for('static', filename='js/core/bootstrap.bundle.min.js') }}"></script>
     <script>
       // Copyright year
-      document.getElementById('copy-year').textContent = new Date().getFullYear();
+      var _year = new Date().getFullYear();
+      document.getElementById('copy-year').textContent = _year;
+      var _aboutYear = document.getElementById('about-copy-year');
+      if (_aboutYear) _aboutYear.textContent = _year;
     </script>
   </body>
 </html>

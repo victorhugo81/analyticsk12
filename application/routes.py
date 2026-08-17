@@ -44,6 +44,27 @@ def get_assigned_users():
 # This allows for modular application structure and route organization
 routes_blueprint = Blueprint('routes', __name__)
 
+def _get_app_version():
+    """Read the current version number from the top entry of CHANGELOG.md
+    (e.g. '## [1.1.2] - 2026-08-16') so the About modal never drifts out of
+    sync with a hardcoded template value."""
+    try:
+        changelog_path = os.path.join(current_app.root_path, 'CHANGELOG.md')
+        with open(changelog_path, encoding='utf-8') as f:
+            for line in f:
+                m = re.match(r'##\s*\[(\d+\.\d+\.\d+)\]', line)
+                if m:
+                    return m.group(1)
+    except OSError:
+        pass
+    return None
+
+
+@routes_blueprint.app_context_processor
+def inject_app_version():
+    return dict(app_version=_get_app_version())
+
+
 @routes_blueprint.app_context_processor
 def inject_active_notifications():
     try:
@@ -959,18 +980,6 @@ def _format_skip_summary(label, row_numbers):
         text += f', +{len(row_numbers) - _MAX_ROW_ERRORS_SHOWN} more'
     text += ')'
     return text
-
-
-def _skip_count(skip_detail):
-    """Sum the leading 'N' out of a '; '-joined _format_skip_summary string, e.g. '3 skipped: ...; 12 skipped: ...' -> 15."""
-    if not skip_detail:
-        return 0
-    total = 0
-    for part in skip_detail.split('; '):
-        head = part.split(' ', 1)[0]
-        if head.isdigit():
-            total += int(head)
-    return total
 
 
 def _parse_date(s):
@@ -2070,7 +2079,7 @@ def bulk_upload_users():
                         _format_skip_summary('section not found', skipped_no_course),
                     ) if p
                 ]
-                skip_detail = '; '.join(skip_parts) or None
+                skip_detail = ' '.join(skip_parts) or None
                 db.session.commit()
                 db.session.add(BulkUploadLog(
                     filename=f'[Student Schedule] {filename}',
@@ -2084,7 +2093,7 @@ def bulk_upload_users():
                 db.session.commit()
                 msg = f'Student Schedule: {enrolled} enrolled, {dropped} dropped.'
                 if skip_detail:
-                    msg += '\n  ' + skip_detail.replace('; ', '\n  ')
+                    msg += ' ' + skip_detail
                 flash_messages.append(msg)
             elif is_parents:
                 added, updated, skipped_missing_field, skipped_no_student = _process_parents_rows(rows)
@@ -2094,7 +2103,7 @@ def bulk_upload_users():
                         _format_skip_summary('student not found', skipped_no_student),
                     ) if p
                 ]
-                skip_detail = '; '.join(skip_parts) or None
+                skip_detail = ' '.join(skip_parts) or None
                 db.session.commit()
                 db.session.add(BulkUploadLog(
                     filename=f'[Parents] {filename}',
@@ -2108,7 +2117,7 @@ def bulk_upload_users():
                 db.session.commit()
                 msg = f'Parents: {added} added, {updated} updated.'
                 if skip_detail:
-                    msg += '\n  ' + skip_detail.replace('; ', '\n  ')
+                    msg += ' ' + skip_detail
                 flash_messages.append(msg)
             elif is_grades:
                 added, updated, skipped = _process_grades_rows(rows)
@@ -2238,8 +2247,7 @@ def bulk_upload_users():
         _recompute_grad_subject_credits()
 
     if flash_messages:
-        headline = f'Upload completed — {len(flash_messages)} file(s) processed.'
-        flash('\n'.join([headline] + flash_messages), 'success')
+        flash(' | '.join(flash_messages), 'success')
 
     return redirect(url_for('routes.upload_users'))
 
@@ -2378,8 +2386,6 @@ def ftp_bulk_upload_users():
     master_schedule_path     = f'{ftp_dir}/master_schedule.csv'
     students_schedule_path   = f'{ftp_dir}/students_schedule.csv'
     parents_path             = f'{ftp_dir}/parents.csv'
-    absences_path             = f'{ftp_dir}/absences.csv'
-    incidents_path            = f'{ftp_dir}/behavioral_incidents.csv'
 
     users_added = users_updated = users_deactivated = total_records = 0
     sites_added = sites_updated = sites_total = 0
@@ -2391,8 +2397,6 @@ def ftp_bulk_upload_users():
     sched_skip_detail = None
     parents_added = parents_updated = parents_total = 0
     parents_skip_detail = None
-    absences_added = absences_skipped = absences_total = 0
-    incidents_added = incidents_skipped = incidents_total = 0
     grad_recompute_needed = False
 
     try:
@@ -2453,58 +2457,6 @@ def ftp_bulk_upload_users():
             db.session.commit()
         except ftplib.error_perm:
             pass  # demographics.csv not found on server — skip silently
-
-        # --- Download and process absences.csv (optional) ---
-        absences_buf = io.BytesIO()
-        try:
-            ftp.retrbinary(f'RETR {absences_path}', absences_buf.write)
-            absences_buf.seek(0)
-            _absences_raw = absences_buf.read()
-            try:
-                _absences_text = _absences_raw.decode('utf-8-sig')
-            except UnicodeDecodeError:
-                _absences_text = _absences_raw.decode('latin-1')
-            absences_rows = list(csv.DictReader(_absences_text.splitlines()))
-            absences_total = len(absences_rows)
-            absences_added, absences_skipped = _process_absence_rows(absences_rows)
-            db.session.commit()
-            db.session.add(BulkUploadLog(
-                filename='[FTP Absences] absences.csv',
-                uploaded_by_id=current_user.id,
-                total_records=absences_total,
-                users_added=absences_added,
-                users_updated=0,
-                status='success'
-            ))
-            db.session.commit()
-        except ftplib.error_perm:
-            pass  # absences.csv not found on server — skip silently
-
-        # --- Download and process behavioral_incidents.csv (optional) ---
-        incidents_buf = io.BytesIO()
-        try:
-            ftp.retrbinary(f'RETR {incidents_path}', incidents_buf.write)
-            incidents_buf.seek(0)
-            _incidents_raw = incidents_buf.read()
-            try:
-                _incidents_text = _incidents_raw.decode('utf-8-sig')
-            except UnicodeDecodeError:
-                _incidents_text = _incidents_raw.decode('latin-1')
-            incidents_rows = list(csv.DictReader(_incidents_text.splitlines()))
-            incidents_total = len(incidents_rows)
-            incidents_added, incidents_skipped = _process_incident_rows(incidents_rows)
-            db.session.commit()
-            db.session.add(BulkUploadLog(
-                filename='[FTP Behavioral Incidents] behavioral_incidents.csv',
-                uploaded_by_id=current_user.id,
-                total_records=incidents_total,
-                users_added=incidents_added,
-                users_updated=0,
-                status='success'
-            ))
-            db.session.commit()
-        except ftplib.error_perm:
-            pass  # behavioral_incidents.csv not found on server — skip silently
 
         # --- Download and process staff.csv (optional) ---
         staff_buf = io.BytesIO()
@@ -2610,7 +2562,7 @@ def ftp_bulk_upload_users():
                     _format_skip_summary('section not found', sched_skip_no_course),
                 ) if p
             ]
-            sched_skip_detail = '; '.join(sched_skip_parts) or None
+            sched_skip_detail = ' '.join(sched_skip_parts) or None
             db.session.commit()
             db.session.add(BulkUploadLog(
                 filename='[FTP Student Schedule] students_schedule.csv',
@@ -2644,7 +2596,7 @@ def ftp_bulk_upload_users():
                     _format_skip_summary('student not found', parents_skipped_no_student),
                 ) if p
             ]
-            parents_skip_detail = '; '.join(parents_skip_parts) or None
+            parents_skip_detail = ' '.join(parents_skip_parts) or None
             db.session.commit()
             db.session.add(BulkUploadLog(
                 filename='[FTP Parents] parents.csv',
@@ -2737,44 +2689,36 @@ def ftp_bulk_upload_users():
             ))
             db.session.commit()
 
-        files_synced = sum(1 for total in (
-            total_records if users_found else 0, sites_total, demographics_total, absences_total,
-            incidents_total, staff_total, courses_total, master_total, sched_total, parents_total,
-        ) if total)
-        lines = [f'FTP import completed — {files_synced} file(s) synced.' if files_synced
-                 else 'FTP import completed — no files were found at the configured FTP path.']
         if users_found:
-            users_line = f'Users: {users_added} added, {users_updated} updated.'
+            msg = f'FTP import successful: {users_added} users added, {users_updated} updated.'
             if users_deactivated:
-                users_line += f' {users_deactivated} marked Inactive (not in file).'
-            lines.append(users_line)
+                msg += f' {users_deactivated} marked Inactive (not in file).'
+        else:
+            msg = 'FTP import successful.'
         if sites_total:
-            lines.append(f'Sites: {sites_added} added, {sites_updated} updated.')
+            msg += f' Sites: {sites_added} added, {sites_updated} updated.'
         if demographics_total:
-            lines.append(f'Demographics: {demographics_added} added, {demographics_updated} updated.')
-        if absences_total:
-            lines.append(f'Absences: {absences_added} added.')
-        if incidents_total:
-            lines.append(f'Behavioral Incidents: {incidents_added} added.')
+            demo_msg = f' Demographics: {demographics_added} added, {demographics_updated} updated.'
+            if demographics_skipped:
+                demo_msg += f' {demographics_skipped} skipped.'
+            msg += demo_msg
         if staff_total:
-            lines.append(f'Staff: {staff_added} added, {staff_updated} updated.')
+            msg += f' Staff: {staff_added} added, {staff_updated} updated.'
         if courses_total:
-            lines.append(f'Courses: {courses_added} added, {courses_updated} updated.')
+            msg += f' Courses: {courses_added} added, {courses_updated} updated.'
         if master_total:
-            lines.append(f'Master Schedule: {master_added} added, {master_updated} updated.')
+            msg += f' Master Schedule: {master_added} added, {master_updated} updated.'
         if sched_total:
-            lines.append(f'Student Schedule: {sched_enrolled} enrolled, {sched_dropped} dropped.')
+            sched_msg = f' Student Schedule: {sched_enrolled} enrolled, {sched_dropped} dropped.'
+            if sched_skip_detail:
+                sched_msg += ' ' + sched_skip_detail
+            msg += sched_msg
         if parents_total:
-            lines.append(f'Parents: {parents_added} added, {parents_updated} updated.')
-
-        total_skipped = (demographics_skipped + absences_skipped + incidents_skipped +
-                          _skip_count(sched_skip_detail) + _skip_count(parents_skip_detail))
-        if total_skipped:
-            lines.append(
-                f'{total_skipped} row(s) could not be imported and were skipped — '
-                'see Upload History below (expand the row) for which ones and why.'
-            )
-        flash('\n'.join(lines), 'success')
+            parents_msg = f' Parents: {parents_added} added, {parents_updated} updated.'
+            if parents_skip_detail:
+                parents_msg += ' ' + parents_skip_detail
+            msg += parents_msg
+        flash(msg, 'success')
 
     except (ftplib.Error, OSError, EOFError, UnicodeDecodeError, ValueError) as e:
         db.session.rollback()
