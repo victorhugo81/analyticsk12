@@ -14,7 +14,7 @@
      built to sit quietly next to it rather than compete with it. */
   --bs-main-color-primary:   #13284A;
   --bs-main-color-secondary: #2E4870;  /* lighter step of the same navy family, not a second hue */
-  /* Darkened from the original #B7791F — that only hit 3.64:1 against white,
+  /* Darkened from the original #B7791F — that only hit 3.64:1 against white,.venv\Scripts\activate 
      failing WCAG 1.4.3 (needs 4.5:1) for both white-on-amber button text and
      amber-on-white body text. This shade holds the same warm bronze hue at
      5.5:1. */
@@ -108,6 +108,19 @@ html { scroll-behavior: smooth; }
   background-image: none;
   background-color: var(--bs-main-color-primary);
 }
+
+/* Every other .btn color variant (primary/secondary/success/...) has its own
+   :hover rule below. Without one here, Bootstrap's base .btn:hover references
+   the undefined --bs-btn-hover-bg/-color custom properties, which resolve to
+   background-color's initial value (transparent) at computed-value time —
+   the button's fill disappears on hover, showing the white page through it. */
+.btn.bg-gradient-main:hover {
+  color: #fff;
+  background-color: var(--bs-main-color-secondary);
+  border-color: var(--bs-main-color-secondary);
+  box-shadow: var(--shadow-md);
+}
+.btn.bg-gradient-main.focus, .btn.bg-gradient-main:focus { color: #fff; }
 
 .site-name-nav {
   font-size: 10px;
@@ -298,7 +311,12 @@ a.user-welcome {
    LAYOUT UTILITIES
    ========================================================================== */
 
-.main-card-box    { min-height: 82vh; }
+.main-card-box {
+  width: 95%;
+  max-width: 1280px;
+  min-height: 82vh;
+  margin: 0 auto;
+}
 .mt-n4            { margin-top: -1.5rem; }
 .copyright        { margin-top: -30px; }
 .bg-gray-100      { background-color: var(--color-bg) !important; }
@@ -605,6 +623,7 @@ a.user-welcome {
   color: #fff;
   border: 1px solid var(--bs-main-color-primary);
   box-shadow: var(--shadow-sm);
+  margin-bottom: 10px;
 }
 .btn-outline-dark:hover {
   background-color: var(--color-primary-dark);
@@ -699,6 +718,22 @@ a.user-welcome {
 .shadow-dark {
   box-shadow: var(--shadow-dark) !important;
 }
+
+/* .card-mini {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+  margin-bottom: 30px;
+}
+
+.card-body-mini {
+  margin: 2%;
+  padding: 2%;
+} */
+
+
+
 
 .card {
   --bs-card-spacer-y: 1rem;
@@ -1013,6 +1048,11 @@ input.form-control {
   background-color: var(--color-bg);
   cursor: not-allowed;
   opacity: 0.7;
+}
+
+.form-control.dept-box {
+  height: auto;
+  min-height: 200px;
 }
 
 label, .form-label {
@@ -1438,7 +1478,8 @@ input.read-only { background: #f3f4f6 !important; color: var(--color-text) !impo
   letter-spacing: 0.03em;
   border-radius: var(--radius-pill);
   font-size: 0.7rem;
-  padding: 0.3em 0.7em;
+  padding: 0.8em 0.8em;
+  background-color: #3F384C;
 }
 .badge-sm { font-size: 0.65rem; padding: 0.25em 0.6em; }
 
@@ -1891,72 +1932,58 @@ hr.horizontal.gray-light { background-image: linear-gradient(to right, rgba(0,0,
 }
 
 /* ==========================================================================
-   NAVIGATION — MOBILE MENU
+   NAVIGATION — MOBILE/TABLET SIDEBAR TOGGLE
+   Below the xl breakpoint the sidebar itself (#sidenav-main) slides off-screen
+   by default (see the .g-sidenav-show transform rule) and this hamburger
+   button — shown only via the `d-xl-none` utility in the markup — opens the
+   very same sidebar via toggleSidenav() in material-dashboard.js. There is no
+   separate mobile menu to keep in sync with the desktop one anymore.
    ========================================================================== */
 
-.mobileOnly { display: none !important; }
+.mobile-menu-toggle {
+  display: flex; flex-direction: column; justify-content: center;
+  gap: 5px;
+  width: 40px; height: 36px;
+  padding: 4px 6px;
+  background: none; border: none; cursor: pointer;
+  z-index: 7;
+}
+.mobile-menu-toggle span {
+  display: block;
+  width: 28px; height: 2px;
+  background: var(--color-text-muted);
+  border-radius: 2px;
+  transition: transform 0.4s cubic-bezier(0.77,0.2,0.05,1),
+              background 0.4s cubic-bezier(0.77,0.2,0.05,1),
+              opacity 0.4s ease;
+}
+.mobile-menu-toggle span:first-child { transform-origin: 0% 0%; }
+.mobile-menu-toggle span:last-child  { transform-origin: 0% 100%; }
 
-@media (max-width: 1024px) {
-  .mobileOnly { display: block !important; }
+/* Morph the hamburger into an X while the sidebar is open — driven purely by
+   the .g-sidenav-pinned class toggleSidenav() already applies to <body>, so
+   no extra JS is needed just for the icon shape. */
+.g-sidenav-pinned .mobile-menu-toggle span {
+  background: var(--color-text);
+}
+.g-sidenav-pinned .mobile-menu-toggle span:first-child {
+  transform: rotate(45deg) translate(-1px, -1px);
+}
+.g-sidenav-pinned .mobile-menu-toggle span:nth-child(2) {
+  opacity: 0;
+  transform: scale(0.2);
+}
+.g-sidenav-pinned .mobile-menu-toggle span:last-child {
+  transform: rotate(-45deg) translate(-1px, 1px);
+}
 
-  #menuToggle {
-    display: flex; flex-direction: column;
-    position: relative; z-index: 6;
-    user-select: none;
-  }
-
-  .mobile-menu-toggle {
-    display: flex; flex-direction: column; justify-content: center;
-    gap: 5px;
-    width: 40px; height: 36px;
-    padding: 4px 6px;
-    background: none; border: none; cursor: pointer;
-    z-index: 7;
-  }
-  .mobile-menu-toggle span {
-    display: block;
-    width: 28px; height: 2px;
-    background: var(--color-text-muted);
-    border-radius: 2px;
-    transition: transform 0.4s cubic-bezier(0.77,0.2,0.05,1),
-                background 0.4s cubic-bezier(0.77,0.2,0.05,1),
-                opacity 0.4s ease;
-  }
-  .mobile-menu-toggle span:first-child { transform-origin: 0% 0%; }
-  .mobile-menu-toggle span:last-child  { transform-origin: 0% 100%; }
-
-  #menuToggle.is-open .mobile-menu-toggle span {
-    opacity: 1;
-    transform: rotate(45deg) translate(-3px, -1px);
-    background: var(--color-text);
-  }
-  #menuToggle.is-open .mobile-menu-toggle span:nth-child(2) {
-    opacity: 0;
-    transform: rotate(0deg) scale(0.2);
-  }
-  #menuToggle.is-open .mobile-menu-toggle span:last-child {
-    transform: rotate(-45deg) translate(0, -1px);
-  }
-
-  #menu {
-    z-index: 5; position: fixed;
-    top: 0; left: 0; width: 100%; height: 100%;
-    box-shadow: var(--shadow-xl);
-    padding: 50px;
-    background-color: #fafafa;
-    -webkit-font-smoothing: antialiased;
-    transform-origin: 0% 0%;
-    transform: translate(-100%, 0);
-    transition: transform 0.45s cubic-bezier(0.77,0.2,0.05,1);
-  }
-  #menu li { font-size: 1.4em; text-align: left; color: var(--color-text); }
-  #menu li .active {
-    border-bottom: 2px solid var(--bs-main-color-primary);
-    text-align: left;
-    color: var(--bs-main-color-primary);
-  }
-
-  #menuToggle.is-open #menu { transform: translate(0, 0); }
+/* Mobile/tablet global-filters accordion toggle — chevron flips via Bootstrap's
+   native aria-expanded state on the collapse trigger, no extra JS needed. */
+#globalFiltersToggle .material-symbols-rounded {
+  transition: transform 0.2s ease;
+}
+#globalFiltersToggle[aria-expanded="true"] .material-symbols-rounded {
+  transform: rotate(180deg);
 }
 
 /* ==========================================================================
@@ -2234,6 +2261,7 @@ input.search-field-box.form-control:focus {
   border-color: var(--bs-main-color-secondary) !important;
   box-shadow: 0 0 0 3px rgba(46,72,112,0.1);
 }
+
 
 select.form-select-box.form-select {
   padding-left: 0.875rem;

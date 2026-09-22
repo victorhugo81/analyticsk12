@@ -8,7 +8,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from datetime import date
 from main import create_app, db
-from application.models import Site, Student, Teacher, Course, Parent, Absence, Incident, Grade
+from application.models import Site, Student, Teacher, Course, Parent, Absence, Incident, Grade, GraduationRequirement
 from sqlalchemy.exc import SQLAlchemyError
 
 app = create_app()
@@ -67,6 +67,30 @@ TEACHERS = [
     dict(first_name='Nina',     last_name='Cheng',     employee_id='T026', email='n.cheng@school.edu',       department='Humanities', site_code='FKA009'),
     dict(first_name='Oscar',    last_name='Delgado',   employee_id='T027', email='o.delgado@school.edu',     department='Mathematics', site_code='FKA009'),
     dict(first_name='Paula',    last_name='Yuen',      employee_id='T028', email='p.yuen@school.edu',        department='Science', site_code='FKA009'),
+]
+
+# Standard subject-area credit requirements for the Graduation Status dashboard
+# (Settings > Graduation Settings). Sums to the district's 220-credit target.
+# Algebra I is sorted before Mathematics since it's a carve-out of that department
+# (name_keywords narrows it to just Algebra courses; the broader Mathematics row
+# catches everything else in that department).
+GRADUATION_REQUIREMENTS = [
+    dict(subject_name='English',      credits_required=40, departments='English',
+         sort_order=10, start_grade='9',  end_grade='12'),
+    dict(subject_name='Algebra I',     credits_required=10, departments='Mathematics',
+         name_keywords='Algebra', sort_order=20, start_grade='9',  end_grade='9'),
+    dict(subject_name='Mathematics',   credits_required=20, departments='Mathematics',
+         sort_order=30, start_grade='9',  end_grade='12'),
+    dict(subject_name='Science',       credits_required=30, departments='Life Science,Physical Science',
+         sort_order=40, start_grade='9',  end_grade='12'),
+    dict(subject_name='Social Science', credits_required=30, departments='Social Science',
+         sort_order=50, start_grade='10', end_grade='12'),
+    dict(subject_name='Physical Education', credits_required=20, departments='Physical Education',
+         sort_order=60, start_grade='9',  end_grade='10'),
+    dict(subject_name='Visual/Performing Arts & World Language', credits_required=10,
+         departments='Art,Music,Foreign Language', sort_order=70, start_grade='9', end_grade='12'),
+    dict(subject_name='Electives', credits_required=60, is_catch_all=True,
+         sort_order=999, start_grade='9', end_grade='12'),
 ]
 
 _SC  = '2025-2026'
@@ -1151,10 +1175,20 @@ with app.app_context():
         db.session.flush()
         print(f"  Grades added:    {len(GRADES)}")
 
+        # --- Graduation Requirements ---
+        for r in GRADUATION_REQUIREMENTS:
+            obj = GraduationRequirement.query.filter_by(subject_name=r['subject_name']).first()
+            if obj:
+                print(f"  Grad requirement exists: {r['subject_name']}")
+            else:
+                db.session.add(GraduationRequirement(**r))
+                print(f"  Grad requirement added:  {r['subject_name']}")
+        db.session.flush()
+
         db.session.commit()
         print("\nAcademic data seeded successfully.")
         n_students = len(STUDENTS) + len(STUDENTS_PY) + len(STUDENTS_Y2) + len(STUDENTS_Y3)
-        print(f"  {len(SITES)} sites | {len(TEACHERS)} teachers | {n_students} students | {len(COURSES)} courses | {len(PARENTS)} parents | {len(ABSENCES)} absences | {len(GRADES)} grades")
+        print(f"  {len(SITES)} sites | {len(TEACHERS)} teachers | {n_students} students | {len(COURSES)} courses | {len(PARENTS)} parents | {len(ABSENCES)} absences | {len(GRADES)} grades | {len(GRADUATION_REQUIREMENTS)} graduation requirements")
 
     except SQLAlchemyError as err:
         db.session.rollback()

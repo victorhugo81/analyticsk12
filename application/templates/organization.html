@@ -5,7 +5,7 @@
   <div class="col-12">
     <div class="main-card-box card my-4">
 
-      <div class="card-header p-0 position-relative mt-n4 mx-3 z-index-2">
+      <div class="card-header p-0 position-relative mt-n4 z-index-2">
         <div class="bg-gradient-main custom-title-card">
           <h2 class="text-white text-capitalize ps-3"><i class="material-symbols-rounded opacity-5">database</i> Data Integration</h2>
         </div>
@@ -14,410 +14,368 @@
       <div class="card-body px-0 pb-2">
 
         <div class="container-fluid my-3 py-3">
-          <div class="row mb-5">
 
-            <!-- Secondary Menu -->
-            <div class="col-lg-3">
-              <div class="card position-sticky top-1">
-                <ul class="nav flex-column bg-white border-radius-lg p-3">
-                  <li class="nav-item secondary-nav">
-                    <a class="nav-link text-dark d-flex" data-scroll="" href="#organization">
-                      <i class="material-symbols-rounded text-lg me-2">house</i>
-                      <span class="text-sm">Organization</span>
-                    </a>
-                  </li>
-                  <li class="nav-item secondary-nav">
-                    <a class="nav-link text-dark d-flex" data-scroll="" href="#email-config">
-                      <i class="material-symbols-rounded text-lg me-2">mail</i>
-                      <span class="text-sm">Email Configuration</span>
-                    </a>
-                  </li>
-                  <li class="nav-item secondary-nav pt-2">
-                    <a class="nav-link text-dark d-flex" data-scroll="" href="#bulk-upload">
-                      <i class="material-symbols-rounded text-lg me-2">upload_file</i>
-                      <span class="text-sm">Bulk Upload</span>
-                    </a>
-                  </li>
-                  <li class="nav-item secondary-nav pt-2">
-                    <a class="nav-link text-dark d-flex" data-scroll="" href="#dashboard-cards">
-                      <i class="material-symbols-rounded text-lg me-2">dashboard</i>
-                      <span class="text-sm">Dashboard Cards</span>
-                    </a>
-                  </li>
-                </ul>
+        <!-- General Settings -->
+        <div class="card mb-4" id="organization">
+          <div class="card-body">
+            <h3 class="bg-gradient-main custom-title-card px-3"><span class="text-white">General Settings</span></h3>
+            <form method="POST" action="{{ url_for('routes.organization', organization_id=organization.id) }}">
+              {{ form.csrf_token }}
+              <div class="input-group input-group-outline my-3 pt-4">
+                {{ form.organization_name.label }}
+                {{ form.organization_name(class="form-control") }}
+              </div>
+
+              <p class="text-xs text-uppercase fw-bold text-muted mb-3">Academic Calendar</p>
+              <div class="input-group input-group-outline my-3">
+                {{ form.current_school_year.label(class="form-label") }}
+                {{ form.current_school_year(class="form-control", placeholder="2024-2025") }}
+              </div>
+              <div class="form-text text-xs text-muted mb-3" style="margin-top:-0.75rem;">Used as the default school year for data imports.</div>
+              <div class="row g-3 mb-3">
+                <div class="col-12 col-md-6">
+                  <div class="input-group input-group-outline">
+                    {{ form.first_school_day.label(class="form-label") }}
+                    {{ form.first_school_day(class="form-control") }}
+                  </div>
+                </div>
+                <div class="col-12 col-md-6">
+                  <div class="input-group input-group-outline">
+                    {{ form.last_school_day.label(class="form-label") }}
+                    {{ form.last_school_day(class="form-control") }}
+                  </div>
+                </div>
+              </div>
+              <div class="input-group input-group-outline justify-content-end gap-2">
+                {{ form.submit(class="btn bg-gradient-main add-table-button shadow-dark") }}
+                <a type="button" class="btn reset-button-box shadow-dark" href="{{ url_for('routes.organization') }}">Cancel</a>
+              </div>
+            </form>
+          </div>
+        </div>
+        <!-- End General Settings -->
+
+        <!-- Email Configuration -->
+        <div class="card mb-4" id="email-config">
+          <div class="card-body">
+            <h3 class="bg-gradient-main custom-title-card px-3"><span class="text-white">Email Configuration</span></h3>
+            <p class="text-sm text-muted mb-3 pt-4">Configure the SMTP settings used to send ticket notifications. TLS and SSL are mutually exclusive — use TLS (port 587) or SSL (port 465), not both.</p>
+            <form method="POST" action="{{ url_for('routes.email_config') }}">
+              {{ email_form.csrf_token }}
+              <div class="row">
+                <div class="col-md-8">
+                  <div class="input-group input-group-outline my-3">
+                    {{ email_form.mail_server.label }}
+                    {{ email_form.mail_server(class="form-control", placeholder="e.g. smtp.gmail.com") }}
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="input-group input-group-outline my-3">
+                    {{ email_form.mail_port.label }}
+                    {{ email_form.mail_port(class="form-control", placeholder="e.g. 587 or 465") }}
+                  </div>
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="input-group input-group-outline my-3">
+                    {{ email_form.mail_username.label }}
+                    {{ email_form.mail_username(class="form-control", placeholder="sender@example.com") }}
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="input-group input-group-outline my-3">
+                    {{ email_form.mail_password.label }}
+                    {{ email_form.mail_password(class="form-control", placeholder="Leave blank to keep existing password") }}
+                  </div>
+                </div>
+              </div>
+              <div class="input-group input-group-outline my-3">
+                {{ email_form.mail_default_sender.label }}
+                {{ email_form.mail_default_sender(class="form-control", placeholder="sender@example.com") }}
+              </div>
+              <div class="d-flex gap-4 my-3">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="mail_use_tls"
+                         name="mail_use_tls" {% if email_form.mail_use_tls.data %}checked{% endif %}>
+                  <label class="form-check-label" for="mail_use_tls">Use TLS (STARTTLS)</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="mail_use_ssl"
+                         name="mail_use_ssl" {% if email_form.mail_use_ssl.data %}checked{% endif %}>
+                  <label class="form-check-label" for="mail_use_ssl">Use SSL</label>
+                </div>
+              </div>
+              <div class="input-group input-group-outline justify-content-end gap-2">
+                {{ email_form.submit_email(class="btn bg-gradient-main add-table-button shadow-dark px-3") }}
+                <a type="button" class="btn reset-button-box shadow-dark" href="{{ url_for('routes.organization') }}">Cancel</a>
+              </div>
+            </form>
+          </div>
+        </div>
+        <!-- End Email Configuration -->
+
+        <!-- Test Email -->
+        <div class="card mb-4">
+          <div class="card-body">
+            <h3 class="bg-gradient-main custom-title-card px-3"><span class="text-white">Send Test Email</span></h3>
+            <p class="text-sm text-muted mb-3 pt-4">Verify your SMTP configuration by sending a test email.</p>
+            <div class="row align-items-end">
+              <div class="col-md-8">
+                <div class="input-group input-group-outline my-3">
+                  <label class="form-label">Recipient Email</label>
+                  <input type="email" id="testRecipient" class="form-control" placeholder="recipient@example.com">
+                </div>
+              </div>
+              <div class="col-md-auto mb-3">
+                <button type="button" class="btn bg-gradient-main add-table-button shadow-dark" id="sendTestEmail">Send Test Email</button>
               </div>
             </div>
-            <!-- END Secondary Menu -->
+            <div id="testEmailResult" class="mt-2" style="display:none;"></div>
+          </div>
+        </div>
+        <!-- End Test Email -->
 
-            <div class="col-lg-9 mt-lg-0 mt-4">
+        <!-- Bulk Upload -->
+        <div class="card mb-4" id="bulk-upload">
+          <div class="card-body">
+            <h3 class="bg-gradient-main custom-title-card px-3"><span class="text-white">Bulk Upload</span></h3>
+            <p class="text-sm text-muted mb-3 pt-4">Upload a CSV file to create or update multiple users at once.</p>
+            <a href="{{ url_for('routes.upload_users') }}" class="btn bg-gradient-main add-table-button shadow-dark mb-0">
+              <i class="material-symbols-rounded position-relative me-1" style="font-size:1rem; vertical-align:middle;">upload_file</i>
+              Bulk Upload
+            </a>
+          </div>
+        </div>
+        <!-- End Bulk Upload -->
 
-              <!-- General Settings -->
-              <div class="card mb-4" id="organization">
-                <div class="card-body">
-                  <h3 class="bg-gradient-main custom-title-card px-3"><span class="text-white">General Settings</span></h3>
-                  <form method="POST" action="{{ url_for('routes.organization', organization_id=organization.id) }}">
-                    {{ form.csrf_token }}
-                    <div class="input-group input-group-outline my-3 pt-4">
-                      {{ form.organization_name.label }}
-                      {{ form.organization_name(class="form-control") }}
-                    </div>
-                    <div class="input-group input-group-outline my-3">
-                      {{ form.site_version.label(class="form-label") }}
-                      {{ form.site_version(class="form-control") }}
-                    </div>
-                    <hr class="my-3">
-                    <p class="text-xs text-uppercase fw-bold text-muted mb-3">Academic Calendar</p>
-                    <div class="input-group input-group-outline my-3">
-                      {{ form.current_school_year.label(class="form-label") }}
-                      {{ form.current_school_year(class="form-control", placeholder="2024-2025") }}
-                    </div>
-                    <div class="form-text text-xs text-muted mb-3" style="margin-top:-0.75rem;">Used as the default school year for data imports.</div>
-                    <div class="row g-3 mb-3">
-                      <div class="col-12 col-md-6">
-                        <div class="input-group input-group-outline">
-                          {{ form.first_school_day.label(class="form-label") }}
-                          {{ form.first_school_day(class="form-control") }}
-                        </div>
-                      </div>
-                      <div class="col-12 col-md-6">
-                        <div class="input-group input-group-outline">
-                          {{ form.last_school_day.label(class="form-label") }}
-                          {{ form.last_school_day(class="form-control") }}
-                        </div>
-                      </div>
-                    </div>
-                    <div class="input-group input-group-outline justify-content-end gap-2">
-                      {{ form.submit(class="btn bg-gradient-main add-table-button shadow-dark") }}
-                      <a type="button" class="btn reset-button-box shadow-dark" href="{{ url_for('routes.organization') }}">Cancel</a>
-                    </div>
-                  </form>
-                </div>
-              </div>
-              <!-- End General Settings -->
+        <!-- Dashboard Card Visibility -->
+        <div class="card mb-4" id="dashboard-cards">
+          <div class="card-body">
+            <h3 class="bg-gradient-main custom-title-card px-3"><span class="text-white">Dashboard Cards</span></h3>
+            <p class="text-sm text-muted mb-4 pt-4">Toggle which cards are visible on the main dashboard.</p>
+            <form method="POST" action="{{ url_for('routes.card_visibility') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-              <!-- Email Configuration -->
-              <div class="card mb-4" id="email-config">
-                <div class="card-body">
-                  <h3 class="bg-gradient-main custom-title-card px-3"><span class="text-white">Email Configuration</span></h3>
-                  <p class="text-sm text-muted mb-3 pt-4">Configure the SMTP settings used to send ticket notifications. TLS and SSL are mutually exclusive — use TLS (port 587) or SSL (port 465), not both.</p>
-                  <form method="POST" action="{{ url_for('routes.email_config') }}">
-                    {{ email_form.csrf_token }}
-                    <div class="row">
-                      <div class="col-md-8">
-                        <div class="input-group input-group-outline my-3">
-                          {{ email_form.mail_server.label }}
-                          {{ email_form.mail_server(class="form-control", placeholder="e.g. smtp.gmail.com") }}
-                        </div>
-                      </div>
-                      <div class="col-md-4">
-                        <div class="input-group input-group-outline my-3">
-                          {{ email_form.mail_port.label }}
-                          {{ email_form.mail_port(class="form-control", placeholder="e.g. 587 or 465") }}
-                        </div>
-                      </div>
-                    </div>
-                    <div class="row">
-                      <div class="col-md-6">
-                        <div class="input-group input-group-outline my-3">
-                          {{ email_form.mail_username.label }}
-                          {{ email_form.mail_username(class="form-control", placeholder="sender@example.com") }}
-                        </div>
-                      </div>
-                      <div class="col-md-6">
-                        <div class="input-group input-group-outline my-3">
-                          {{ email_form.mail_password.label }}
-                          {{ email_form.mail_password(class="form-control", placeholder="Leave blank to keep existing password") }}
-                        </div>
-                      </div>
-                    </div>
-                    <div class="input-group input-group-outline my-3">
-                      {{ email_form.mail_default_sender.label }}
-                      {{ email_form.mail_default_sender(class="form-control", placeholder="sender@example.com") }}
-                    </div>
-                    <div class="d-flex gap-4 my-3">
-                      <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="mail_use_tls"
-                               name="mail_use_tls" {% if email_form.mail_use_tls.data %}checked{% endif %}>
-                        <label class="form-check-label" for="mail_use_tls">Use TLS (STARTTLS)</label>
-                      </div>
-                      <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="mail_use_ssl"
-                               name="mail_use_ssl" {% if email_form.mail_use_ssl.data %}checked{% endif %}>
-                        <label class="form-check-label" for="mail_use_ssl">Use SSL</label>
-                      </div>
-                    </div>
-                    <div class="input-group input-group-outline justify-content-end gap-2">
-                      {{ email_form.submit_email(class="btn bg-gradient-main add-table-button shadow-dark px-3") }}
-                      <a type="button" class="btn reset-button-box shadow-dark" href="{{ url_for('routes.organization') }}">Cancel</a>
-                    </div>
-                  </form>
-                </div>
-              </div>
-              <!-- End Email Configuration -->
+              <p class="text-xs fw-bold text-uppercase text-muted mb-2">Student Data</p>
+              <div class="row g-3 mb-4">
 
-              <!-- Test Email -->
-              <div class="card mb-4">
-                <div class="card-body">
-                  <h3 class="bg-gradient-main custom-title-card px-3"><span class="text-white">Send Test Email</span></h3>
-                  <p class="text-sm text-muted mb-3 pt-4">Verify your SMTP configuration by sending a test email.</p>
-                  <div class="row align-items-end">
-                    <div class="col-md-8">
-                      <div class="input-group input-group-outline my-3">
-                        <label class="form-label">Recipient Email</label>
-                        <input type="email" id="testRecipient" class="form-control" placeholder="recipient@example.com">
-                      </div>
+                <div class="col-sm-6">
+                  <div class="d-flex align-items-center justify-content-between border rounded-3 px-3 py-2">
+                    <div class="d-flex align-items-center gap-2">
+                      <i class="material-symbols-rounded text-muted" style="font-size:1.1rem;">groups</i>
+                      <span class="text-sm">Demographics</span>
                     </div>
-                    <div class="col-md-auto mb-3">
-                      <button type="button" class="btn bg-gradient-main add-table-button shadow-dark" id="sendTestEmail">Send Test Email</button>
+                    <div class="form-check form-switch mb-0 ms-3 flex-shrink-0">
+                      <input class="form-check-input" type="checkbox" role="switch"
+                             name="show_demographics" id="show_demographics"
+                             {% if organization.show_demographics %}checked{% endif %}>
                     </div>
                   </div>
-                  <div id="testEmailResult" class="mt-2" style="display:none;"></div>
+                  <p class="text-xs text-muted mb-0 mt-1 ms-1">Needs <code>demographics.csv</code></p>
                 </div>
-              </div>
-              <!-- End Test Email -->
 
-              <!-- Bulk Upload -->
-              <div class="card mb-4" id="bulk-upload">
-                <div class="card-body">
-                  <h3 class="bg-gradient-main custom-title-card px-3"><span class="text-white">Bulk Upload</span></h3>
-                  <p class="text-sm text-muted mb-3 pt-4">Upload a CSV file to create or update multiple users at once.</p>
-                  <a href="{{ url_for('routes.upload_users') }}" class="btn bg-gradient-main add-table-button shadow-dark mb-0">
-                    <i class="material-symbols-rounded position-relative me-1" style="font-size:1rem; vertical-align:middle;">upload_file</i>
-                    Bulk Upload
-                  </a>
+                <div class="col-sm-6">
+                  <div class="d-flex align-items-center justify-content-between border rounded-3 px-3 py-2">
+                    <div class="d-flex align-items-center gap-2">
+                      <i class="material-symbols-rounded text-muted" style="font-size:1.1rem;">event_available</i>
+                      <span class="text-sm">Absenteeism</span>
+                    </div>
+                    <div class="form-check form-switch mb-0 ms-3 flex-shrink-0">
+                      <input class="form-check-input" type="checkbox" role="switch"
+                             name="show_absenteeism" id="show_absenteeism"
+                             {% if organization.show_absenteeism %}checked{% endif %}>
+                    </div>
+                  </div>
+                  <p class="text-xs text-muted mb-0 mt-1 ms-1">Needs <code>absences.csv</code></p>
                 </div>
-              </div>
-              <!-- End Bulk Upload -->
 
-              <!-- Dashboard Card Visibility -->
-              <div class="card mb-4" id="dashboard-cards">
-                <div class="card-body">
-                  <h3 class="bg-gradient-main custom-title-card px-3"><span class="text-white">Dashboard Cards</span></h3>
-                  <p class="text-sm text-muted mb-4 pt-4">Toggle which cards are visible on the main dashboard.</p>
-                  <form method="POST" action="{{ url_for('routes.card_visibility') }}">
-                    <input type="hidden" name="csrf_token" value="{{ email_form.csrf_token._value() }}">
-
-                    <p class="text-xs fw-bold text-uppercase text-muted mb-2">Student Data</p>
-                    <div class="row g-3 mb-4">
-
-                      <div class="col-sm-6">
-                        <div class="d-flex align-items-center justify-content-between border rounded-3 px-3 py-2">
-                          <div class="d-flex align-items-center gap-2">
-                            <i class="material-symbols-rounded text-muted" style="font-size:1.1rem;">groups</i>
-                            <span class="text-sm">Demographics</span>
-                          </div>
-                          <div class="form-check form-switch mb-0 ms-3 flex-shrink-0">
-                            <input class="form-check-input" type="checkbox" role="switch"
-                                   name="show_demographics" id="show_demographics"
-                                   {% if organization.show_demographics %}checked{% endif %}>
-                          </div>
-                        </div>
-                        <p class="text-xs text-muted mb-0 mt-1 ms-1">Needs <code>demographics.csv</code></p>
-                      </div>
-
-                      <div class="col-sm-6">
-                        <div class="d-flex align-items-center justify-content-between border rounded-3 px-3 py-2">
-                          <div class="d-flex align-items-center gap-2">
-                            <i class="material-symbols-rounded text-muted" style="font-size:1.1rem;">event_available</i>
-                            <span class="text-sm">Absenteeism</span>
-                          </div>
-                          <div class="form-check form-switch mb-0 ms-3 flex-shrink-0">
-                            <input class="form-check-input" type="checkbox" role="switch"
-                                   name="show_absenteeism" id="show_absenteeism"
-                                   {% if organization.show_absenteeism %}checked{% endif %}>
-                          </div>
-                        </div>
-                        <p class="text-xs text-muted mb-0 mt-1 ms-1">Needs <code>absences.csv</code></p>
-                      </div>
-
-                      <div class="col-sm-6">
-                        <div class="d-flex align-items-center justify-content-between border rounded-3 px-3 py-2">
-                          <div class="d-flex align-items-center gap-2">
-                            <i class="material-symbols-rounded text-muted" style="font-size:1.1rem;">gavel</i>
-                            <span class="text-sm">Discipline</span>
-                          </div>
-                          <div class="form-check form-switch mb-0 ms-3 flex-shrink-0">
-                            <input class="form-check-input" type="checkbox" role="switch"
-                                   name="show_discipline" id="show_discipline"
-                                   {% if organization.show_discipline %}checked{% endif %}>
-                          </div>
-                        </div>
-                        <p class="text-xs text-muted mb-0 mt-1 ms-1">Needs <code>behavioral_incidents.csv</code></p>
-                      </div>
-
-                      <div class="col-sm-6">
-                        <div class="d-flex align-items-center justify-content-between border rounded-3 px-3 py-2">
-                          <div class="d-flex align-items-center gap-2">
-                            <i class="material-symbols-rounded text-muted" style="font-size:1.1rem;">accessibility_new</i>
-                            <span class="text-sm">SWD</span>
-                          </div>
-                          <div class="form-check form-switch mb-0 ms-3 flex-shrink-0">
-                            <input class="form-check-input" type="checkbox" role="switch"
-                                   name="show_swd" id="show_swd"
-                                   {% if organization.show_swd %}checked{% endif %}>
-                          </div>
-                        </div>
-                        <p class="text-xs text-muted mb-0 mt-1 ms-1">Needs <code>demographics.csv</code></p>
-                      </div>
-
-                      <div class="col-sm-6">
-                        <div class="d-flex align-items-center justify-content-between border rounded-3 px-3 py-2">
-                          <div class="d-flex align-items-center gap-2">
-                            <i class="material-symbols-rounded text-muted" style="font-size:1.1rem;">translate</i>
-                            <span class="text-sm">EL Progress</span>
-                          </div>
-                          <div class="form-check form-switch mb-0 ms-3 flex-shrink-0">
-                            <input class="form-check-input" type="checkbox" role="switch"
-                                   name="show_el_progress" id="show_el_progress"
-                                   {% if organization.show_el_progress %}checked{% endif %}>
-                          </div>
-                        </div>
-                        <p class="text-xs text-muted mb-0 mt-1 ms-1">Needs <code>demographics.csv</code></p>
-                      </div>
-
+                <div class="col-sm-6">
+                  <div class="d-flex align-items-center justify-content-between border rounded-3 px-3 py-2">
+                    <div class="d-flex align-items-center gap-2">
+                      <i class="material-symbols-rounded text-muted" style="font-size:1.1rem;">gavel</i>
+                      <span class="text-sm">Discipline</span>
                     </div>
-
-                    <p class="text-xs fw-bold text-uppercase text-muted mb-2">Enrollment &amp; Attendance</p>
-                    <div class="row g-3 mb-4">
-
-                      <div class="col-sm-6">
-                        <div class="d-flex align-items-center justify-content-between border rounded-3 px-3 py-2">
-                          <div class="d-flex align-items-center gap-2">
-                            <i class="material-symbols-rounded text-muted" style="font-size:1.1rem;">how_to_reg</i>
-                            <span class="text-sm">Registration</span>
-                          </div>
-                          <div class="form-check form-switch mb-0 ms-3 flex-shrink-0">
-                            <input class="form-check-input" type="checkbox" role="switch"
-                                   name="show_registration" id="show_registration"
-                                   {% if organization.show_registration %}checked{% endif %}>
-                          </div>
-                        </div>
-                        <p class="text-xs text-muted mb-0 mt-1 ms-1">No file yet &mdash; coming soon</p>
-                      </div>
-
-                      <div class="col-sm-6">
-                        <div class="d-flex align-items-center justify-content-between border rounded-3 px-3 py-2">
-                          <div class="d-flex align-items-center gap-2">
-                            <i class="material-symbols-rounded text-muted" style="font-size:1.1rem;">school</i>
-                            <span class="text-sm">Enrollment</span>
-                          </div>
-                          <div class="form-check form-switch mb-0 ms-3 flex-shrink-0">
-                            <input class="form-check-input" type="checkbox" role="switch"
-                                   name="show_enrollment" id="show_enrollment"
-                                   {% if organization.show_enrollment %}checked{% endif %}>
-                          </div>
-                        </div>
-                        <p class="text-xs text-muted mb-0 mt-1 ms-1">Needs <code>demographics.csv</code>, <code>master_schedule.csv</code></p>
-                      </div>
-
-                      <div class="col-sm-6">
-                        <div class="d-flex align-items-center justify-content-between border rounded-3 px-3 py-2">
-                          <div class="d-flex align-items-center gap-2">
-                            <i class="material-symbols-rounded text-muted" style="font-size:1.1rem;">fact_check</i>
-                            <span class="text-sm">Attendance Rates</span>
-                          </div>
-                          <div class="form-check form-switch mb-0 ms-3 flex-shrink-0">
-                            <input class="form-check-input" type="checkbox" role="switch"
-                                   name="show_attendance_rates" id="show_attendance_rates"
-                                   {% if organization.show_attendance_rates %}checked{% endif %}>
-                          </div>
-                        </div>
-                        <p class="text-xs text-muted mb-0 mt-1 ms-1">Needs <code>absences.csv</code>, <code>students_schedule.csv</code></p>
-                      </div>
-
+                    <div class="form-check form-switch mb-0 ms-3 flex-shrink-0">
+                      <input class="form-check-input" type="checkbox" role="switch"
+                             name="show_discipline" id="show_discipline"
+                             {% if organization.show_discipline %}checked{% endif %}>
                     </div>
-
-                    <p class="text-xs fw-bold text-uppercase text-muted mb-2">Student Outcomes</p>
-                    <div class="row g-3 mb-4">
-
-                      <div class="col-sm-6">
-                        <div class="d-flex align-items-center justify-content-between border rounded-3 px-3 py-2">
-                          <div class="d-flex align-items-center gap-2">
-                            <i class="material-symbols-rounded text-muted" style="font-size:1.1rem;">crisis_alert</i>
-                            <span class="text-sm">Early Warning System</span>
-                          </div>
-                          <div class="form-check form-switch mb-0 ms-3 flex-shrink-0">
-                            <input class="form-check-input" type="checkbox" role="switch"
-                                   name="show_early_warning" id="show_early_warning"
-                                   {% if organization.show_early_warning %}checked{% endif %}>
-                          </div>
-                        </div>
-                        <p class="text-xs text-muted mb-0 mt-1 ms-1">Needs <code>absences.csv</code>, <code>behavioral_incidents.csv</code>, <code>grades.csv</code></p>
-                      </div>
-
-                      <div class="col-sm-6">
-                        <div class="d-flex align-items-center justify-content-between border rounded-3 px-3 py-2">
-                          <div class="d-flex align-items-center gap-2">
-                            <i class="material-symbols-rounded text-muted" style="font-size:1.1rem;">verified_user</i>
-                            <span class="text-sm">CALPADS Compliance</span>
-                          </div>
-                          <div class="form-check form-switch mb-0 ms-3 flex-shrink-0">
-                            <input class="form-check-input" type="checkbox" role="switch"
-                                   name="show_calpads" id="show_calpads"
-                                   {% if organization.show_calpads %}checked{% endif %}>
-                          </div>
-                        </div>
-                        <p class="text-xs text-muted mb-0 mt-1 ms-1">Needs <code>demographics.csv</code></p>
-                      </div>
-
-                      <div class="col-sm-6">
-                        <div class="d-flex align-items-center justify-content-between border rounded-3 px-3 py-2">
-                          <div class="d-flex align-items-center gap-2">
-                            <i class="material-symbols-rounded text-muted" style="font-size:1.1rem;">school</i>
-                            <span class="text-sm">Graduation Status</span>
-                          </div>
-                          <div class="form-check form-switch mb-0 ms-3 flex-shrink-0">
-                            <input class="form-check-input" type="checkbox" role="switch"
-                                   name="show_graduation" id="show_graduation"
-                                   {% if organization.show_graduation %}checked{% endif %}>
-                          </div>
-                        </div>
-                        <p class="text-xs text-muted mb-0 mt-1 ms-1">Needs <code>grades.csv</code>, <code>master_schedule.csv</code></p>
-                      </div>
-
-                      <div class="col-sm-6">
-                        <div class="d-flex align-items-center justify-content-between border rounded-3 px-3 py-2">
-                          <div class="d-flex align-items-center gap-2">
-                            <i class="material-symbols-rounded text-muted" style="font-size:1.1rem;">military_tech</i>
-                            <span class="text-sm">Credits Required to Graduate</span>
-                          </div>
-                          <div class="form-check form-switch mb-0 ms-3 flex-shrink-0">
-                            <input class="form-check-input" type="checkbox" role="switch"
-                                   name="grad_auto_calculate_credits" id="grad_auto_calculate_credits"
-                                   {% if organization.grad_auto_calculate_credits %}checked{% endif %}>
-                          </div>
-                        </div>
-                        <p class="text-xs text-muted mb-0 mt-1 ms-1">Uses <a href="{{ url_for('routes.graduation_settings') }}">Graduation Settings</a></p>
-                      </div>
-
-                      <div class="col-sm-6">
-                        <div class="d-flex align-items-center justify-content-between border rounded-3 px-3 py-2">
-                          <div class="d-flex align-items-center gap-2">
-                            <i class="material-symbols-rounded text-muted" style="font-size:1.1rem;">balance</i>
-                            <span class="text-sm">Equity Gaps</span>
-                          </div>
-                          <div class="form-check form-switch mb-0 ms-3 flex-shrink-0">
-                            <input class="form-check-input" type="checkbox" role="switch"
-                                   name="show_equity_gaps" id="show_equity_gaps"
-                                   {% if organization.show_equity_gaps %}checked{% endif %}>
-                          </div>
-                        </div>
-                        <p class="text-xs text-muted mb-0 mt-1 ms-1">Needs <code>demographics.csv</code>, <code>absences.csv</code>, <code>behavioral_incidents.csv</code></p>
-                      </div>
-
-                    </div>
-
-                    <div class="input-group justify-content-end gap-2">
-                      <button type="submit" class="btn bg-gradient-main add-table-button shadow-dark">Save</button>
-                      <a type="button" class="btn reset-button-box shadow-dark" href="{{ url_for('routes.organization') }}">Cancel</a>
-                    </div>
-                  </form>
+                  </div>
+                  <p class="text-xs text-muted mb-0 mt-1 ms-1">Needs <code>behavioral_incidents.csv</code></p>
                 </div>
-              </div>
-              <!-- End Dashboard Card Visibility -->
 
-            </div>
+                <div class="col-sm-6">
+                  <div class="d-flex align-items-center justify-content-between border rounded-3 px-3 py-2">
+                    <div class="d-flex align-items-center gap-2">
+                      <i class="material-symbols-rounded text-muted" style="font-size:1.1rem;">accessibility_new</i>
+                      <span class="text-sm">SWD</span>
+                    </div>
+                    <div class="form-check form-switch mb-0 ms-3 flex-shrink-0">
+                      <input class="form-check-input" type="checkbox" role="switch"
+                             name="show_swd" id="show_swd"
+                             {% if organization.show_swd %}checked{% endif %}>
+                    </div>
+                  </div>
+                  <p class="text-xs text-muted mb-0 mt-1 ms-1">Needs <code>demographics.csv</code></p>
+                </div>
+
+                <div class="col-sm-6">
+                  <div class="d-flex align-items-center justify-content-between border rounded-3 px-3 py-2">
+                    <div class="d-flex align-items-center gap-2">
+                      <i class="material-symbols-rounded text-muted" style="font-size:1.1rem;">translate</i>
+                      <span class="text-sm">EL Progress</span>
+                    </div>
+                    <div class="form-check form-switch mb-0 ms-3 flex-shrink-0">
+                      <input class="form-check-input" type="checkbox" role="switch"
+                             name="show_el_progress" id="show_el_progress"
+                             {% if organization.show_el_progress %}checked{% endif %}>
+                    </div>
+                  </div>
+                  <p class="text-xs text-muted mb-0 mt-1 ms-1">Needs <code>demographics.csv</code></p>
+                </div>
+
+              </div>
+
+              <p class="text-xs fw-bold text-uppercase text-muted mb-2">Enrollment &amp; Attendance</p>
+              <div class="row g-3 mb-4">
+
+                <div class="col-sm-6">
+                  <div class="d-flex align-items-center justify-content-between border rounded-3 px-3 py-2">
+                    <div class="d-flex align-items-center gap-2">
+                      <i class="material-symbols-rounded text-muted" style="font-size:1.1rem;">how_to_reg</i>
+                      <span class="text-sm">Registration</span>
+                    </div>
+                    <div class="form-check form-switch mb-0 ms-3 flex-shrink-0">
+                      <input class="form-check-input" type="checkbox" role="switch"
+                             name="show_registration" id="show_registration"
+                             {% if organization.show_registration %}checked{% endif %}>
+                    </div>
+                  </div>
+                  <p class="text-xs text-muted mb-0 mt-1 ms-1">No file yet &mdash; coming soon</p>
+                </div>
+
+                <div class="col-sm-6">
+                  <div class="d-flex align-items-center justify-content-between border rounded-3 px-3 py-2">
+                    <div class="d-flex align-items-center gap-2">
+                      <i class="material-symbols-rounded text-muted" style="font-size:1.1rem;">school</i>
+                      <span class="text-sm">Enrollment</span>
+                    </div>
+                    <div class="form-check form-switch mb-0 ms-3 flex-shrink-0">
+                      <input class="form-check-input" type="checkbox" role="switch"
+                             name="show_enrollment" id="show_enrollment"
+                             {% if organization.show_enrollment %}checked{% endif %}>
+                    </div>
+                  </div>
+                  <p class="text-xs text-muted mb-0 mt-1 ms-1">Needs <code>demographics.csv</code>, <code>master_schedule.csv</code></p>
+                </div>
+
+                <div class="col-sm-6">
+                  <div class="d-flex align-items-center justify-content-between border rounded-3 px-3 py-2">
+                    <div class="d-flex align-items-center gap-2">
+                      <i class="material-symbols-rounded text-muted" style="font-size:1.1rem;">fact_check</i>
+                      <span class="text-sm">Attendance Rates</span>
+                    </div>
+                    <div class="form-check form-switch mb-0 ms-3 flex-shrink-0">
+                      <input class="form-check-input" type="checkbox" role="switch"
+                             name="show_attendance_rates" id="show_attendance_rates"
+                             {% if organization.show_attendance_rates %}checked{% endif %}>
+                    </div>
+                  </div>
+                  <p class="text-xs text-muted mb-0 mt-1 ms-1">Needs <code>absences.csv</code>, <code>students_schedule.csv</code></p>
+                </div>
+
+              </div>
+
+              <p class="text-xs fw-bold text-uppercase text-muted mb-2">Student Outcomes</p>
+              <div class="row g-3 mb-4">
+
+                <div class="col-sm-6">
+                  <div class="d-flex align-items-center justify-content-between border rounded-3 px-3 py-2">
+                    <div class="d-flex align-items-center gap-2">
+                      <i class="material-symbols-rounded text-muted" style="font-size:1.1rem;">crisis_alert</i>
+                      <span class="text-sm">Early Warning System</span>
+                    </div>
+                    <div class="form-check form-switch mb-0 ms-3 flex-shrink-0">
+                      <input class="form-check-input" type="checkbox" role="switch"
+                             name="show_early_warning" id="show_early_warning"
+                             {% if organization.show_early_warning %}checked{% endif %}>
+                    </div>
+                  </div>
+                  <p class="text-xs text-muted mb-0 mt-1 ms-1">Needs <code>absences.csv</code>, <code>behavioral_incidents.csv</code>, <code>grades.csv</code></p>
+                </div>
+
+                <div class="col-sm-6">
+                  <div class="d-flex align-items-center justify-content-between border rounded-3 px-3 py-2">
+                    <div class="d-flex align-items-center gap-2">
+                      <i class="material-symbols-rounded text-muted" style="font-size:1.1rem;">verified_user</i>
+                      <span class="text-sm">CALPADS Compliance</span>
+                    </div>
+                    <div class="form-check form-switch mb-0 ms-3 flex-shrink-0">
+                      <input class="form-check-input" type="checkbox" role="switch"
+                             name="show_calpads" id="show_calpads"
+                             {% if organization.show_calpads %}checked{% endif %}>
+                    </div>
+                  </div>
+                  <p class="text-xs text-muted mb-0 mt-1 ms-1">Needs <code>demographics.csv</code></p>
+                </div>
+
+                <div class="col-sm-6">
+                  <div class="d-flex align-items-center justify-content-between border rounded-3 px-3 py-2">
+                    <div class="d-flex align-items-center gap-2">
+                      <i class="material-symbols-rounded text-muted" style="font-size:1.1rem;">school</i>
+                      <span class="text-sm">Graduation Status</span>
+                    </div>
+                    <div class="form-check form-switch mb-0 ms-3 flex-shrink-0">
+                      <input class="form-check-input" type="checkbox" role="switch"
+                             name="show_graduation" id="show_graduation"
+                             {% if organization.show_graduation %}checked{% endif %}>
+                    </div>
+                  </div>
+                  <p class="text-xs text-muted mb-0 mt-1 ms-1">Needs <code>grades.csv</code>, <code>master_schedule.csv</code></p>
+                </div>
+
+                <div class="col-sm-6">
+                  <div class="d-flex align-items-center justify-content-between border rounded-3 px-3 py-2">
+                    <div class="d-flex align-items-center gap-2">
+                      <i class="material-symbols-rounded text-muted" style="font-size:1.1rem;">military_tech</i>
+                      <span class="text-sm">Credits Required to Graduate</span>
+                    </div>
+                    <div class="form-check form-switch mb-0 ms-3 flex-shrink-0">
+                      <input class="form-check-input" type="checkbox" role="switch"
+                             name="grad_auto_calculate_credits" id="grad_auto_calculate_credits"
+                             {% if organization.grad_auto_calculate_credits %}checked{% endif %}>
+                    </div>
+                  </div>
+                  <p class="text-xs text-muted mb-0 mt-1 ms-1">Uses <a href="{{ url_for('routes.graduation_settings') }}">Graduation Settings</a></p>
+                </div>
+
+                <div class="col-sm-6">
+                  <div class="d-flex align-items-center justify-content-between border rounded-3 px-3 py-2">
+                    <div class="d-flex align-items-center gap-2">
+                      <i class="material-symbols-rounded text-muted" style="font-size:1.1rem;">balance</i>
+                      <span class="text-sm">Equity Gaps</span>
+                    </div>
+                    <div class="form-check form-switch mb-0 ms-3 flex-shrink-0">
+                      <input class="form-check-input" type="checkbox" role="switch"
+                             name="show_equity_gaps" id="show_equity_gaps"
+                             {% if organization.show_equity_gaps %}checked{% endif %}>
+                    </div>
+                  </div>
+                  <p class="text-xs text-muted mb-0 mt-1 ms-1">Needs <code>demographics.csv</code>, <code>absences.csv</code>, <code>behavioral_incidents.csv</code></p>
+                </div>
+
+              </div>
+
+              <div class="input-group justify-content-end gap-2">
+                <button type="submit" class="btn bg-gradient-main add-table-button shadow-dark">Save</button>
+                <a type="button" class="btn reset-button-box shadow-dark" href="{{ url_for('routes.organization') }}">Cancel</a>
+              </div>
+            </form>
           </div>
+        </div>
+        <!-- End Dashboard Card Visibility -->
+
         </div>
 
       </div>
@@ -443,7 +401,7 @@ document.getElementById('sendTestEmail').addEventListener('click', function () {
 
     var formData = new FormData();
     formData.append('test_recipient', recipient);
-    formData.append('csrf_token', '{{ email_form.csrf_token._value() }}');
+    formData.append('csrf_token', '{{ csrf_token() }}');
 
     fetch('{{ url_for("routes.test_email") }}', {
         method: 'POST',

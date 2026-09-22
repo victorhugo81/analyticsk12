@@ -5,7 +5,7 @@
   <div class="col-12">
     <div class="main-card-box card my-4">
 
-      <div class="card-header p-0 position-relative mt-n4 mx-3 z-index-2">
+      <div class="card-header p-0 position-relative mt-n4 z-index-2">
         <div class="bg-gradient-main shadow-dark border-radius-lg pt-4 pb-3 d-flex justify-content-between align-items-center flex-wrap">
           <h2 class="text-white ps-3 mb-0">
             <i class="material-symbols-rounded opacity-5">translate</i> English Learner Progress
@@ -240,8 +240,11 @@ function printDashboard() {
   const body = document.querySelector('.card-body');
   const PRINT_CHART_H = '150px';
   const swaps = [];
+  const decodePromises = [];
   document.querySelectorAll('.chart-wrap canvas').forEach(canvas => {
     const wrap = canvas.closest('.chart-wrap');
+    const chartInstance = Chart.getChart(canvas);
+    if (chartInstance) chartInstance.update('none'); // force a finished, non-animated frame before capture
     const img = document.createElement('img');
     img.src = canvas.toDataURL('image/png');
     img.style.cssText = 'width:100%;height:100%;object-fit:fill;display:block;';
@@ -249,18 +252,26 @@ function printDashboard() {
     canvas.style.display = 'none';
     if (wrap) { wrap._ph = wrap.style.height; wrap.style.height = PRINT_CHART_H; }
     swaps.push({ canvas, img, wrap });
+    decodePromises.push(img.decode ? img.decode().catch(() => {}) : Promise.resolve());
   });
-  body.style.zoom = '1'; void body.offsetHeight;
-  const PAGE_W = Math.round((297 - 0.8) / 25.4 * 96);
-  const PAGE_H = Math.round((210 - 0.8) / 25.4 * 96);
-  body.style.zoom = Math.min(PAGE_W / body.scrollWidth, PAGE_H / body.scrollHeight, 1).toFixed(4);
-  setTimeout(() => {
-    window.print();
-    setTimeout(() => {
-      body.style.zoom = '';
-      swaps.forEach(({ canvas, img, wrap }) => { canvas.style.display = ''; img.remove(); if (wrap) wrap.style.height = wrap._ph; });
-    }, 500);
-  }, 250);
+  const PAGE_W = Math.round((279.4 - 8) / 25.4 * 96); // Letter landscape width minus 0.4cm margins
+  const PAGE_H = Math.round((215.9 - 8) / 25.4 * 96); // Letter landscape height minus 0.4cm margins
+
+  function applyZoom() {
+    // Measured after the print stylesheet is active, so it reflects the real printed layout.
+    body.style.zoom = '1';
+    void body.offsetHeight;
+    body.style.zoom = Math.min(PAGE_W / body.scrollWidth, PAGE_H / body.scrollHeight, 1).toFixed(4);
+  }
+  function cleanup() {
+    body.style.zoom = '';
+    swaps.forEach(({ canvas, img, wrap }) => { canvas.style.display = ''; img.remove(); if (wrap) wrap.style.height = wrap._ph; });
+    window.removeEventListener('beforeprint', applyZoom);
+    window.removeEventListener('afterprint', cleanup);
+  }
+  window.addEventListener('beforeprint', applyZoom);
+  window.addEventListener('afterprint', cleanup);
+  Promise.all(decodePromises).then(() => window.print()); // wait for chart images to finish decoding so they aren't blank
 }
 </script>
 

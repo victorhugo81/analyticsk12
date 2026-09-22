@@ -6,7 +6,7 @@
 <div class="row">
     <div class="col-12">
         <div class="main-card-box card my-4">
-        <div class="card-header p-0 position-relative mt-n4 mx-3 z-index-2">
+        <div class="card-header p-0 position-relative mt-n4 z-index-2">
           <div class="bg-gradient-main shadow-dark border-radius-lg pt-4 pb-3">
             <h2 class="text-white text-capitalize ps-3">Edit Graduation Subject Area</h2>
           </div>
@@ -32,6 +32,12 @@
     {{ form.credits_required.label (class="form-label") }}
         {{ form.credits_required (class="form-control") }}
     </div>
+    <div class="input-group input-group-outline my-3">
+    {{ form.credits_required_continuation.label (class="form-label") }}
+        {{ form.credits_required_continuation (class="form-control") }}
+    </div>
+    <p class="text-xs text-muted ms-1">Leave blank to use the same credits as Standard. Applies to students at sites whose Graduation Track (set on the Site record) is Continuation.</p>
+
     <div class="row">
         <div class="col-6">
             <div class="input-group input-group-outline my-3">
@@ -50,9 +56,9 @@
 
     <div class="input-group input-group-outline my-3">
     {{ form.departments.label (class="form-label") }}
-        {{ form.departments (class="form-control", placeholder="e.g. English") }}
+        {{ form.departments (class="form-control dept-box", size="6") }}
     </div>
-    <p class="text-xs text-muted ms-1">Comma-separated <code>Course.department</code> values that count toward this subject area. Leave blank if this row only uses name matching or is the catch-all.</p>
+    <p class="text-xs text-muted ms-1">Course departments that count toward this subject area. Hold Ctrl (Cmd on Mac) to select more than one. Leave empty if this row only uses name matching or is the catch-all.</p>
 
     <div class="input-group input-group-outline my-3">
     {{ form.name_keywords.label (class="form-label") }}

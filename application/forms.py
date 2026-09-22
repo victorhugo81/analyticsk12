@@ -36,8 +36,11 @@ class RoleForm(FlaskForm):
 
 class GraduationRequirementForm(FlaskForm):
     subject_name = StringField('Subject Area:', validators=[DataRequired(), Length(max=100)])
-    credits_required = DecimalField('Credits Required:', places=2, validators=[DataRequired()])
-    departments = StringField('Matching Departments:', validators=[Optional()])
+    credits_required = DecimalField('Credits Required (Standard):', places=2, validators=[DataRequired()])
+    credits_required_continuation = DecimalField('Credits Required (Continuation):', places=2, validators=[Optional()])
+    # Choices populated per-request in the route from live Course.department values
+    # (plus, on edit, whatever the row already has) — see add/edit_graduation_requirement().
+    departments = SelectMultipleField('Matching Departments:', choices=[], validators=[Optional()])
     name_keywords = StringField('Include if Course Name Contains:', validators=[Optional()])
     name_exclude_keywords = StringField('Exclude if Course Name Contains:', validators=[Optional()])
     is_catch_all = BooleanField('Use as Catch-All for Unmapped Courses', validators=[Optional()])
@@ -74,6 +77,9 @@ class SiteForm(FlaskForm):
     site_cds = StringField('CDS Code:', validators=[DataRequired()])
     site_address = StringField('Site Address:', validators=[DataRequired()])
     site_type = StringField('Site Type:', validators=[DataRequired()])
+    grad_track = SelectField('Graduation Track:',
+        choices=[('standard', 'Standard'), ('continuation', 'Continuation')],
+        default='standard', validators=[DataRequired()])
     site_city = StringField('City:', validators=[Optional()])
     site_state = StringField('State:', validators=[Optional()])
     site_zip = StringField('Zip:', validators=[Optional()])
@@ -93,7 +99,8 @@ class NotificationForm(FlaskForm):
 
 class OrganizationForm(FlaskForm):
     organization_name   = StringField('Organization Name', validators=[DataRequired()])
-    site_version        = StringField('Site Version', validators=[DataRequired()])
+    # Site Version is no longer user-editable — it's displayed read-only from CHANGELOG.md
+    # (see _get_app_version() in routes.py) so it can't drift from the actual app version.
     current_school_year = StringField('Current School Year', validators=[Optional()])
     first_school_day    = DateField('First Day of School', validators=[Optional()])
     last_school_day     = DateField('Last Day of School',  validators=[Optional()])

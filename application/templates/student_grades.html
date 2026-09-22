@@ -4,7 +4,7 @@
 <div class="row">
   <div class="col-12">
     <div class="main-card-box card my-4">
-      <div class="card-header p-0 position-relative mt-n4 mx-3 z-index-2">
+      <div class="card-header p-0 position-relative mt-n4 z-index-2">
         <div class="bg-gradient-main custom-title-card">
           <h2 class="text-white text-capitalize ps-3">
             <i class="material-symbols-rounded opacity-5">grade</i> {{ current_page_name }}
@@ -147,7 +147,13 @@
               </tr>
               {% else %}
               <tr>
-                <td colspan="10" class="text-center text-muted py-4">No grade records found.</td>
+                <td colspan="10" class="text-center text-muted py-4">
+                  {% if request.args.get('search') or term_filter or grade_filter or course_filter %}
+                  No grade records found.
+                  {% else %}
+                  Search by name/ID or choose a filter above to see grade records.
+                  {% endif %}
+                </td>
               </tr>
               {% endfor %}
             </tbody>

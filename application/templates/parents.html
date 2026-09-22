@@ -4,7 +4,7 @@
 <div class="row">
   <div class="col-12">
     <div class="main-card-box card my-4">
-      <div class="card-header p-0 position-relative mt-n4 mx-3 z-index-2">
+      <div class="card-header p-0 position-relative mt-n4 z-index-2">
         <div class="bg-gradient-main custom-title-card">
           <h2 class="text-white text-capitalize ps-3">
             <i class="material-symbols-rounded opacity-5">family_restroom</i> {{ current_page_name }}
@@ -19,7 +19,7 @@
           <div class="row justify-content-between">
             <div class="col">
               <form method="get" class="d-flex">
-                <input type="text" name="search" class="search-field-box form-control" placeholder="Search by name or email"
+                <input type="text" name="search" class="search-field-box form-control" placeholder="Search by name"
                        value="{{ request.args.get('search', '') }}">
                 <button type="submit" class="btn bg-gradient-main search-button-box shadow-dark">Search</button>
                 <a href="{{ url_for('routes.parents') }}" type="button" class="btn reset-button-box shadow-dark">Reset</a>

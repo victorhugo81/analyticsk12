@@ -44,6 +44,19 @@ def hash_email(email: str, secret_key: str) -> str:
     ).hexdigest()
 
 
+def hash_ssid(ssid: str, secret_key: str) -> str:
+    """HMAC-SHA256 of the SSID — a deterministic blind index so encrypted SSIDs can still
+    be joined/grouped/filtered in SQL (Student.ssid_hash == Absence.ssid_hash) without ever
+    decrypting. Same rationale as hash_email: a lookup index, not data-at-rest encryption,
+    so it's keyed by SECRET_KEY. No case-folding (SSIDs are numeric), just whitespace-strip.
+    """
+    return _hmac.new(
+        secret_key.encode('utf-8'),
+        ssid.strip().encode('utf-8'),
+        hashlib.sha256
+    ).hexdigest()
+
+
 def decrypt_mail_password(encrypted: str, encryption_key: str) -> str:
     """Decrypt a stored value (SMTP/FTP password, user email). Returns '' on failure.
 

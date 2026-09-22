@@ -6,7 +6,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from .models import User, Role, Site, Notification, Organization, BulkUploadLog, AuditLog, Student, Teacher, Course, Parent, Absence, Incident, Grade, student_course, GraduationRequirement, StudentSubjectCredits, Intervention
 from .forms import LoginForm, UserForm, RoleForm, SiteForm, NotificationForm, OrganizationForm, EmailConfigForm, StudentForm, TeacherForm, CourseForm, ParentForm, GraduationRequirementForm, InterventionForm
-from .utils import validate_password, validate_file_upload, encrypt_mail_password, decrypt_mail_password, hash_email
+from .utils import validate_password, validate_file_upload, encrypt_mail_password, decrypt_mail_password, hash_email, hash_ssid
 from .email_utils import send_temp_password_email, send_password_updated_email
 from main import db, login_manager, mail, limiter, scheduler
 from flask_mail import Message
@@ -505,7 +505,6 @@ def organization():
 
         # Update organization with form data
         organization.organization_name   = form.organization_name.data
-        organization.site_version        = form.site_version.data
         organization.current_school_year = form.current_school_year.data or None
         organization.first_school_day    = form.first_school_day.data or None
         organization.last_school_day     = form.last_school_day.data or None
@@ -1572,24 +1571,30 @@ def _process_absence_rows(rows):
     if missing_sites:
         raise ValueError(f"Site CDS code(s) not found in the system: {', '.join(missing_sites)}")
 
-    # Build stu_id → ssid lookup across all relevant school years
+    # Build stu_id → ssid lookup across all relevant school years. ssid_enc is fetched
+    # (not the ssid property, which isn't a queryable column) and decrypted here since
+    # the plaintext is what gets written into the new Absence row below.
+    key = current_app.config['DATA_ENCRYPTION_KEY']
     school_years = {row.get('schoolyr', '').strip() for row in rows if row.get('schoolyr', '').strip()}
     stu_ids      = {row['stu_id'].strip() for row in rows if row.get('stu_id')}
     student_rows = (Student.query
-                    .with_entities(Student.student_id, Student.ssid, Student.schoolyr)
+                    .with_entities(Student.student_id, Student.ssid_enc, Student.schoolyr)
                     .filter(Student.student_id.in_(stu_ids))
                     .all())
     # prefer ssid; fall back to student_id string so the absence still links
     ssid_map = {}
     for s in student_rows:
-        ssid_map[(s.student_id, s.schoolyr)] = s.ssid or s.student_id
+        decrypted = decrypt_mail_password(s.ssid_enc, key) if s.ssid_enc else None
+        ssid_map[(s.student_id, s.schoolyr)] = decrypted or s.student_id
 
-    # Build dedup set of existing absences: (site_id, ssid, abs_date, bell_period)
+    # Build dedup set of existing absences: (site_id, ssid_hash, abs_date, bell_period).
+    # Compared by hash (not plaintext) so this doesn't have to decrypt every existing
+    # absence row in the district just to check for duplicates on upload.
     site_ids_in_file = {site_cache[_normalize_siteid(r['site_id'])] for r in rows if r.get('site_id')}
     existing = db.session.query(
-        Absence.site_id, Absence.ssid, Absence.abs_date, Absence.bell_period
+        Absence.site_id, Absence.ssid_hash, Absence.abs_date, Absence.bell_period
     ).filter(Absence.site_id.in_(site_ids_in_file)).all()
-    existing_set = {(r.site_id, r.ssid, r.abs_date, r.bell_period) for r in existing}
+    existing_set = {(r.site_id, r.ssid_hash, r.abs_date, r.bell_period) for r in existing}
 
     for row in rows:
         site_norm = _normalize_siteid(row.get('site_id', ''))
@@ -1608,7 +1613,7 @@ def _process_absence_rows(rows):
             skipped += 1
             continue
 
-        dedup_key = (site_id, ssid, abs_date, period)
+        dedup_key = (site_id, hash_ssid(ssid, current_app.config['SECRET_KEY']), abs_date, period)
         if dedup_key in existing_set:
             skipped += 1
             continue
@@ -1643,16 +1648,20 @@ def _process_incident_rows(rows):
     if missing_sites:
         raise ValueError(f"Site CDS code(s) not found in the system: {', '.join(missing_sites)}")
 
-    # Build stu_id → ssid lookup across all relevant school years
+    # Build stu_id → ssid lookup across all relevant school years. Incident.sisid is a
+    # plain (unencrypted) copy of the SSID used only as this join key, so this needs the
+    # decrypted plaintext, not the hash.
+    key = current_app.config['DATA_ENCRYPTION_KEY']
     stu_ids      = {row['stu_id'].strip() for row in rows if row.get('stu_id')}
     student_rows = (Student.query
-                    .with_entities(Student.student_id, Student.ssid, Student.schoolyr)
+                    .with_entities(Student.student_id, Student.ssid_enc, Student.schoolyr)
                     .filter(Student.student_id.in_(stu_ids))
                     .all())
     # prefer ssid; fall back to student_id string so the incident still links
     ssid_map = {}
     for s in student_rows:
-        ssid_map[(s.student_id, s.schoolyr)] = s.ssid or s.student_id
+        decrypted = decrypt_mail_password(s.ssid_enc, key) if s.ssid_enc else None
+        ssid_map[(s.student_id, s.schoolyr)] = decrypted or s.student_id
 
     # Dedup against existing incidents by incident_id
     existing_ids = {
@@ -1812,9 +1821,11 @@ def _process_parents_rows(rows):
         student_map[s.student_id].append(s)
 
     emails = {row['email'].strip().lower() for row in rows if row.get('email', '').strip()}
+    # Parent.email is encrypted at rest (no DB-side equality/lookup possible on ciphertext) —
+    # filter on email_enc for "has an email at all", then decrypt via the property to match.
     existing_by_email = {
-        p.email.strip().lower(): p for p in Parent.query.filter(Parent.email.isnot(None)).all()
-        if p.email.strip().lower() in emails
+        p.email.strip().lower(): p for p in Parent.query.filter(Parent.email_enc.isnot(None)).all()
+        if p.email and p.email.strip().lower() in emails
     }
 
     for i, row in enumerate(rows, start=2):
@@ -2991,6 +3002,7 @@ def add_site():
             site_cds=form.site_cds.data,
             site_address=form.site_address.data,
             site_type=form.site_type.data,
+            grad_track=form.grad_track.data,
             site_city=form.site_city.data,
             site_state=form.site_state.data,
             site_zip=form.site_zip.data,
@@ -3031,6 +3043,7 @@ def edit_site(site_id):
             site.site_cds == form.site_cds.data and
             site.site_address == form.site_address.data and
             site.site_type == form.site_type.data and
+            site.grad_track == form.grad_track.data and
             site.site_city == form.site_city.data and
             site.site_state == form.site_state.data and
             site.site_zip == form.site_zip.data and
@@ -3047,6 +3060,7 @@ def edit_site(site_id):
         site.site_cds = form.site_cds.data
         site.site_address = form.site_address.data
         site.site_type = form.site_type.data
+        site.grad_track = form.grad_track.data
         site.site_city = form.site_city.data
         site.site_state = form.site_state.data
         site.site_zip = form.site_zip.data
@@ -3269,7 +3283,7 @@ def students():
             'foster':            Student.foster == True,
             'migrant':           Student.migrant == True,
             'sed504':            Student.sed504 == True,
-            'no_ssid':           db.or_(Student.ssid.is_(None), Student.ssid == ''),
+            'no_ssid':           Student.ssid_hash.is_(None),
             'no_english_status': db.or_(Student.english_status.is_(None), Student.english_status == ''),
         }
         conditions = [_sg_conditions[sg] for sg in subgroups if sg in _sg_conditions]
@@ -3344,7 +3358,7 @@ def students_export_csv():
             'foster':            Student.foster == True,
             'migrant':           Student.migrant == True,
             'sed504':            Student.sed504 == True,
-            'no_ssid':           db.or_(Student.ssid.is_(None), Student.ssid == ''),
+            'no_ssid':           Student.ssid_hash.is_(None),
             'no_english_status': db.or_(Student.english_status.is_(None), Student.english_status == ''),
         }
         conditions = [_sg[s] for s in subgroups if s in _sg]
@@ -3410,11 +3424,29 @@ def add_student():
 @login_required
 def student_details(student_id):
     student = Student.query.get_or_404(student_id)
+
+    # Student rows are per school year (unique on (student_id, schoolyr)), so the
+    # numeric PK in the URL pins this page to one specific year's snapshot. If the
+    # global School Year filter has since moved to a different year, transparently
+    # follow it to that same student's row for the active year, when one exists —
+    # otherwise the page would silently ignore the filter like every other route
+    # does NOT (see "Student records are per school year" in CLAUDE.md).
+    schoolyr_filter = session.get('active_schoolyr', '')
+    if schoolyr_filter and student.schoolyr != schoolyr_filter:
+        sibling = Student.query.filter(
+            Student.student_id == student.student_id,
+            Student.schoolyr == schoolyr_filter,
+        ).first()
+        if sibling:
+            student = sibling
+        else:
+            flash(f'No {schoolyr_filter} record exists for this student — showing {student.schoolyr}.', 'warning')
+
     require_site_access(student.site_id)
     student_absences = (Absence.query
-                               .filter(Absence.ssid == student.ssid)
+                               .filter(Absence.ssid_hash == student.ssid_hash)
                                .order_by(Absence.school_yr.desc(), Absence.abs_date.desc())
-                               .all()) if student.ssid else []
+                               .all()) if student.ssid_hash else []
     student_incidents = (Incident.query
                                  .filter(Incident.sisid == student.ssid)
                                  .order_by(Incident.incident_date.desc())
@@ -3524,29 +3556,34 @@ def student_grades():
     term_filter   = request.args.get('term', '').strip()
     grade_filter  = request.args.get('grade_letter', '').strip()
     course_filter = request.args.get('course', '').strip()
+    has_criteria  = bool(search or term_filter or grade_filter or course_filter)
 
-    query = (db.session.query(Grade, Student)
-             .join(Student, Student.student_id == Grade.grades_stuid)
-             .filter(Grade.grades_courseyr == schoolyr))
+    if has_criteria:
+        query = (db.session.query(Grade, Student)
+                 .join(Student, Student.student_id == Grade.grades_stuid)
+                 .filter(Grade.grades_courseyr == schoolyr))
 
-    if search:
-        query = query.filter(db.or_(
-            Student.first_name.ilike(f'%{search}%'),
-            Student.last_name.ilike(f'%{search}%'),
-            Student.student_id.ilike(f'%{search}%'),
-        ))
-    if site_filter:
-        query = query.filter(Student.site_id == site_filter)
-    if term_filter:
-        query = query.filter(Grade.grades_term == term_filter)
-    if grade_filter:
-        query = query.filter(Grade.grades_grade == grade_filter)
-    if course_filter:
-        query = query.filter(Grade.grades_coursenum == course_filter)
+        if search:
+            query = query.filter(db.or_(
+                Student.first_name.ilike(f'%{search}%'),
+                Student.last_name.ilike(f'%{search}%'),
+                Student.student_id.ilike(f'%{search}%'),
+            ))
+        if site_filter:
+            query = query.filter(Student.site_id == site_filter)
+        if term_filter:
+            query = query.filter(Grade.grades_term == term_filter)
+        if grade_filter:
+            query = query.filter(Grade.grades_grade == grade_filter)
+        if course_filter:
+            query = query.filter(Grade.grades_coursenum == course_filter)
 
-    total   = query.count()
-    results = (query.order_by(Student.last_name, Student.first_name, Grade.grades_coursenum, Grade.grades_term)
-               .offset(offset).limit(per_page).all())
+        total   = query.count()
+        results = (query.order_by(Student.last_name, Student.first_name, Grade.grades_coursenum, Grade.grades_term)
+                   .offset(offset).limit(per_page).all())
+    else:
+        total   = 0
+        results = []
     pagination = Pagination(page=page, per_page=per_page, total=total, css_framework='bootstrap5')
 
     terms   = [r[0] for r in db.session.query(Grade.grades_term).filter_by(grades_courseyr=schoolyr).distinct().order_by(Grade.grades_term).all()]
@@ -3620,7 +3657,7 @@ def demographics():
     ifep_count    = base.filter_by(english_status='IFEP').count()
     rfep_count    = base.filter_by(english_status='RFEP').count()
     homeless_count = base.filter(Student.dwelling.isnot(None), Student.dwelling != '').count()
-    tbd_count      = base.filter(db.or_(Student.ssid.is_(None), Student.ssid == '')).count()
+    tbd_count      = base.filter(Student.ssid_hash.is_(None)).count()
     frm_count     = base.filter(Student.frm_code.in_(['F', 'R'])).count()
     swd_count     = base.filter(Student.disability.isnot(None), Student.disability != '').count()
     foster_count  = base.filter_by(foster=True).count()
@@ -3893,11 +3930,13 @@ def early_warning():
         sq = sq.filter(Student.grade == grade_filter)
     students = sq.all()
 
-    # Pre-aggregate absences and incidents by SSID
+    # Pre-aggregate absences and incidents by SSID. Absence is keyed by ssid_hash (the
+    # blind index — see Student.ssid_hash) since Absence.ssid is encrypted and non-FK;
+    # Incident.sisid stays a plain column, so inc_counts is keyed by plaintext as before.
     abs_counts = dict(
-        db.session.query(Absence.ssid, func.count(Absence.id))
+        db.session.query(Absence.ssid_hash, func.count(Absence.id))
         .filter(Absence.school_yr == schoolyr)
-        .group_by(Absence.ssid).all()
+        .group_by(Absence.ssid_hash).all()
     )
     inc_counts = dict(
         db.session.query(Incident.sisid, func.count(Incident.id))
@@ -3936,7 +3975,7 @@ def early_warning():
 
     ews_rows = []
     for s in students:
-        absences  = abs_counts.get(s.ssid or '', 0)
+        absences  = abs_counts.get(s.ssid_hash or '', 0)
         incidents = inc_counts.get(s.ssid or '', 0)
         f_count   = f_counts.get(s.student_id, 0)
         has_f     = f_count > 0
@@ -4170,6 +4209,14 @@ def _load_grad_requirements():
     return GraduationRequirement.query.order_by(GraduationRequirement.sort_order, GraduationRequirement.id).all()
 
 
+def _grad_credits_for(req_row, track):
+    """Credits required for a subject row under a given Site.grad_track ('standard'/'continuation').
+    Continuation falls back to the standard amount when no override is set for that subject."""
+    if track == 'continuation' and req_row.credits_required_continuation is not None:
+        return float(req_row.credits_required_continuation)
+    return float(req_row.credits_required or 0)
+
+
 def _grad_subject_for_course(department, course_name, requirements):
     """Match a course to a subject-area row: department (if set) must match, name must
     contain a keyword (if set) and must not contain an exclude-keyword (if set).
@@ -4257,8 +4304,10 @@ def graduation_settings():
     is_admin()
     requirements = _load_grad_requirements()
     total_credits = sum(float(r.credits_required or 0) for r in requirements)
+    total_credits_continuation = sum(_grad_credits_for(r, 'continuation') for r in requirements)
     return render_template('graduation_settings.html',
         requirements=requirements, total_credits=round(total_credits, 2),
+        total_credits_continuation=round(total_credits_continuation, 2),
         current_page_name='Graduation Settings')
 
 
@@ -4267,6 +4316,8 @@ def graduation_settings():
 def add_graduation_requirement():
     is_admin()
     form = GraduationRequirementForm()
+    course_departments = sorted({c.department for c in Course.query.with_entities(Course.department).all() if c.department})
+    form.departments.choices = [(d, d) for d in course_departments]
     if form.validate_on_submit():
         existing = GraduationRequirement.query.filter_by(subject_name=form.subject_name.data.strip()).first()
         if existing:
@@ -4275,7 +4326,8 @@ def add_graduation_requirement():
         db.session.add(GraduationRequirement(
             subject_name=form.subject_name.data.strip(),
             credits_required=form.credits_required.data,
-            departments=form.departments.data.strip() or None,
+            credits_required_continuation=form.credits_required_continuation.data,
+            departments=','.join(form.departments.data) or None,
             name_keywords=form.name_keywords.data.strip() or None,
             name_exclude_keywords=form.name_exclude_keywords.data.strip() or None,
             is_catch_all=form.is_catch_all.data,
@@ -4295,7 +4347,16 @@ def add_graduation_requirement():
 def edit_graduation_requirement(req_id):
     is_admin()
     requirement = GraduationRequirement.query.get_or_404(req_id)
-    form = GraduationRequirementForm(obj=requirement)
+    # departments is excluded from obj= population here — SelectMultipleField expects a list,
+    # but Model.departments is a raw comma string, which would otherwise get iterated character
+    # by character. Set explicitly below instead.
+    form = GraduationRequirementForm(obj=requirement, departments=[])
+    course_departments = sorted({c.department for c in Course.query.with_entities(Course.department).all() if c.department})
+    # Union with whatever this row already has, so a legacy/renamed department value that's no
+    # longer on any course still shows up (and stays selected) instead of silently disappearing.
+    form.departments.choices = [(d, d) for d in sorted(set(course_departments) | set(requirement.department_list))]
+    if request.method == 'GET':
+        form.departments.data = requirement.department_list
     if form.validate_on_submit():
         existing = GraduationRequirement.query.filter(
             GraduationRequirement.subject_name == form.subject_name.data.strip(),
@@ -4306,7 +4367,8 @@ def edit_graduation_requirement(req_id):
             return render_template('edit_graduation_requirement.html', form=form, requirement=requirement)
         requirement.subject_name = form.subject_name.data.strip()
         requirement.credits_required = form.credits_required.data
-        requirement.departments = form.departments.data.strip() or None
+        requirement.credits_required_continuation = form.credits_required_continuation.data
+        requirement.departments = ','.join(form.departments.data) or None
         requirement.name_keywords = form.name_keywords.data.strip() or None
         requirement.name_exclude_keywords = form.name_exclude_keywords.data.strip() or None
         requirement.is_catch_all = form.is_catch_all.data
@@ -4346,14 +4408,31 @@ def graduation_status():
 
     org = db.session.get(Organization, 1)
     requirements  = _load_grad_requirements()
-    subj_required = {r.subject_name: float(r.credits_required or 0) for r in requirements}
+
+    # Two credit-target sets — 'standard' and 'continuation' (Site.grad_track) — since a
+    # continuation school typically requires fewer credits per subject. Requirement rows,
+    # subject matching, and start/end grade pacing stay shared across both tracks; only the
+    # credits-required target differs (GraduationRequirement.credits_required_continuation).
+    subj_required_by_track = {
+        track: {r.subject_name: _grad_credits_for(r, track) for r in requirements}
+        for track in ('standard', 'continuation')
+    }
+    manual_total_by_track = {
+        'standard':     float(org.grad_credits_required) if org and org.grad_credits_required else 220.0,
+        'continuation': float(org.grad_credits_required_continuation) if org and org.grad_credits_required_continuation
+                         else (float(org.grad_credits_required) if org and org.grad_credits_required else 220.0),
+    }
     if org and org.grad_auto_calculate_credits:
-        required = sum(subj_required.values()) or 220.0
+        required_by_track = {
+            track: sum(subj_required_by_track[track].values()) or manual_total_by_track[track]
+            for track in ('standard', 'continuation')
+        }
     else:
-        required = float(org.grad_credits_required) if org and org.grad_credits_required else 220.0
+        required_by_track = manual_total_by_track
 
     # Pre-index requirements by subject name so per-student rows can look up start/end grade
     requirements_by_subject = {r.subject_name: r for r in requirements}
+    site_track = {s.id: s.grad_track for s in Site.query.with_entities(Site.id, Site.grad_track).all()}
 
     # Base student query — active HS students only
     sq = Student.query.filter(
@@ -4392,6 +4471,9 @@ def graduation_status():
     rows = []
     grade_status_counts = defaultdict(lambda: defaultdict(int))
     for s in students:
+        track = site_track.get(s.site_id, 'standard')
+        subj_required = subj_required_by_track[track]
+        required = required_by_track[track]
         completed_by_subject = student_subject_completed.get(s.student_id, {})
         subject_rows = []
         for name, req_credits in subj_required.items():
@@ -4411,7 +4493,9 @@ def graduation_status():
         rows.append({
             'student':         s,
             'site_name':       site_names.get(s.site_id, ''),
+            'track':           track,
             'credits':         round(credits, 1),
+            'required':        round(required, 1),
             'expected':        round(expected, 1),
             'pct':             round(min(credits / required, 1.0) * 100, 1) if required else 0.0,
             'status':          status,
@@ -4453,7 +4537,7 @@ def graduation_status():
         current_page_name='Graduation Status',
         total=total,
         total_students=len(students),
-        credits_required=required,
+        credits_required=required_by_track['standard'],
         status_counts=status_counts,
         on_track_pct=on_track_pct,
         status_filter=status_filter,
@@ -4956,15 +5040,15 @@ def el_progress_dashboard():
     # the same underlying data Early Warning uses, narrowed to the EL population. Ellevation-style
     # "is the EL program working" signal, not just a headcount.
     schoolyr = yr_filter or '2025-2026'
-    el_ssids      = {s.ssid for s in el_base.with_entities(Student.ssid).all() if s.ssid}
+    el_ssids      = {s.ssid_hash for s in el_base.with_entities(Student.ssid_hash).all() if s.ssid_hash}
     el_student_ids = {s.student_id for s in el_base.with_entities(Student.student_id).all()}
 
     chronic_el = 0
     if el_ssids:
         abs_counts = dict(
-            db.session.query(Absence.ssid, func.count(Absence.id))
-            .filter(Absence.ssid.in_(el_ssids), Absence.school_yr == schoolyr)
-            .group_by(Absence.ssid).all()
+            db.session.query(Absence.ssid_hash, func.count(Absence.id))
+            .filter(Absence.ssid_hash.in_(el_ssids), Absence.school_yr == schoolyr)
+            .group_by(Absence.ssid_hash).all()
         )
         chronic_el = sum(1 for c in abs_counts.values() if c >= 18)
 
@@ -5131,7 +5215,7 @@ def _chronic_absenteeism_rate(schoolyr, site_filter=None, extra_filter=None):
     if extra_filter is not None:
         student_q = student_q.filter(extra_filter)
     students = student_q.with_entities(
-        Student.ssid, Student.site_id, Student.enter_date, Student.exit_date
+        Student.ssid_hash, Student.site_id, Student.enter_date, Student.exit_date
     ).all()
     if not students:
         return None, 0, 0, []
@@ -5139,13 +5223,14 @@ def _chronic_absenteeism_rate(schoolyr, site_filter=None, extra_filter=None):
     # Filtering Absence directly by (school_yr, site_id) — both columns it already has —
     # is far cheaper than passing the whole district's ssid set as a giant IN(...) clause.
     # Any ssid not in `students` below is simply never looked up, so extra rows here (e.g.
-    # when `extra_filter` narrows to a subgroup) don't affect correctness.
+    # when `extra_filter` narrows to a subgroup) don't affect correctness. Joined/grouped on
+    # ssid_hash (the blind index — see Student.ssid_hash) since Absence.ssid is encrypted.
     abs_q = Absence.query.filter(Absence.school_yr == schoolyr)
     if site_filter:
         abs_q = abs_q.filter(Absence.site_id == site_filter)
     abs_counts = dict(
-        abs_q.with_entities(Absence.ssid, func.count(Absence.id))
-        .group_by(Absence.ssid).all()
+        abs_q.with_entities(Absence.ssid_hash, func.count(Absence.id))
+        .group_by(Absence.ssid_hash).all()
     )
 
     site_names = {s.id: s.site_name for s in Site.query.with_entities(Site.id, Site.site_name).all()}
@@ -5155,7 +5240,7 @@ def _chronic_absenteeism_rate(schoolyr, site_filter=None, extra_filter=None):
 
     for s in students:
         site_total[s.site_id] += 1
-        if not s.ssid:
+        if not s.ssid_hash:
             continue
         eff_start = max(s.enter_date, school_start) if s.enter_date else school_start
         eff_end   = min(s.exit_date,  school_end)   if s.exit_date  else school_end
@@ -5164,7 +5249,7 @@ def _chronic_absenteeism_rate(schoolyr, site_filter=None, extra_filter=None):
         enrolled_days = _count_weekdays(eff_start, eff_end)
         if not enrolled_days:
             continue
-        if abs_counts.get(s.ssid, 0) / enrolled_days * 100 >= 10:
+        if abs_counts.get(s.ssid_hash, 0) / enrolled_days * 100 >= 10:
             chronic_count += 1
             site_chronic[s.site_id] += 1
 
@@ -5190,11 +5275,15 @@ def _suspension_rate(schoolyr, site_filter=None, extra_filter=None):
         student_q = student_q.filter(Student.site_id == site_filter)
     if extra_filter is not None:
         student_q = student_q.filter(extra_filter)
-    students = student_q.with_entities(Student.ssid, Student.site_id).all()
+    students = student_q.with_entities(Student.ssid_enc, Student.site_id).all()
     if not students:
         return None, 0, 0, []
 
-    ssids = {s.ssid for s in students if s.ssid}
+    # Incident.sisid is a plain (unencrypted) column — see routes.py's ssid/sisid note —
+    # so this lookup needs the decrypted plaintext, not the ssid_hash blind index.
+    key = current_app.config['DATA_ENCRYPTION_KEY']
+    ssids = {decrypt_mail_password(s.ssid_enc, key) for s in students if s.ssid_enc}
+    ssids.discard('')
     suspended_ssids = set()
     if ssids:
         suspended_ssids = {
@@ -5211,7 +5300,8 @@ def _suspension_rate(schoolyr, site_filter=None, extra_filter=None):
 
     for s in students:
         site_total[s.site_id] += 1
-        if s.ssid and s.ssid in suspended_ssids:
+        s_ssid = decrypt_mail_password(s.ssid_enc, key) if s.ssid_enc else None
+        if s_ssid and s_ssid in suspended_ssids:
             suspended_count += 1
             site_susp[s.site_id] += 1
 
@@ -5262,39 +5352,47 @@ def _equity_gap_rows(schoolyr, site_filter=None):
     if site_filter:
         student_q = student_q.filter(Student.site_id == site_filter)
     students = student_q.with_entities(
-        Student.ssid, Student.enter_date, Student.exit_date,
+        Student.ssid_hash, Student.ssid_enc, Student.enter_date, Student.exit_date,
         Student.disability, Student.english_status, Student.frm_code, Student.foster, Student.dwelling,
         Student.ethnicity
     ).all()
     if not students:
         return [], [], None, None
 
-    ssids = {s.ssid for s in students if s.ssid}
+    # Absence.ssid is encrypted, so its cross-reference is keyed by ssid_hash (the blind
+    # index). Incident.sisid stays a plain column, so that cross-reference needs the
+    # actual decrypted plaintext instead — hence tracking both ssid_hash and a decrypted
+    # plain_ssid per row below.
+    key = current_app.config['DATA_ENCRYPTION_KEY']
+    plain_ssid = {s: (decrypt_mail_password(s.ssid_enc, key) or None) for s in students if s.ssid_enc}
+
+    ssid_hashes = {s.ssid_hash for s in students if s.ssid_hash}
     abs_counts = dict(
-        db.session.query(Absence.ssid, func.count(Absence.id))
-        .filter(Absence.ssid.in_(ssids), Absence.school_yr == schoolyr)
-        .group_by(Absence.ssid).all()
-    ) if ssids else {}
+        db.session.query(Absence.ssid_hash, func.count(Absence.id))
+        .filter(Absence.ssid_hash.in_(ssid_hashes), Absence.school_yr == schoolyr)
+        .group_by(Absence.ssid_hash).all()
+    ) if ssid_hashes else {}
+    plain_ssids = {v for v in plain_ssid.values() if v}
     suspended_ssids = set()
-    if ssids:
+    if plain_ssids:
         suspended_ssids = {
             r[0] for r in db.session.query(Incident.sisid)
-            .filter(Incident.sisid.in_(ssids), Incident.schoolyr == schoolyr,
+            .filter(Incident.sisid.in_(plain_ssids), Incident.schoolyr == schoolyr,
                     Incident.suspended_days.isnot(None), Incident.suspended_days > 0)
             .distinct().all()
         }
 
     def _is_chronic(s):
-        if not s.ssid:
+        if not s.ssid_hash:
             return False
         eff_start = max(s.enter_date, school_start) if s.enter_date else school_start
         eff_end   = min(s.exit_date,  school_end)   if s.exit_date  else school_end
         if eff_start > eff_end:
             return False
         enrolled_days = _count_weekdays(eff_start, eff_end)
-        return bool(enrolled_days) and abs_counts.get(s.ssid, 0) / enrolled_days * 100 >= 10
+        return bool(enrolled_days) and abs_counts.get(s.ssid_hash, 0) / enrolled_days * 100 >= 10
 
-    flags = [{'chronic': _is_chronic(s), 'suspended': bool(s.ssid and s.ssid in suspended_ssids)} for s in students]
+    flags = [{'chronic': _is_chronic(s), 'suspended': bool(plain_ssid.get(s) and plain_ssid.get(s) in suspended_ssids)} for s in students]
 
     total = len(students)
     baseline_ca = round(sum(f['chronic']   for f in flags) / total * 100, 1) if total else 0.0
@@ -5432,16 +5530,16 @@ def absenteeism():
     # enrolled days (not a blanket school_days figure), matching /absences' methodology
     # exactly so the KPI counts here match what clicking through shows.
     ssid_rows = (base_q()
-                 .with_entities(Absence.ssid, func.count(Absence.id).label('cnt'))
-                 .group_by(Absence.ssid).all())
+                 .with_entities(Absence.ssid_hash, func.count(Absence.id).label('cnt'))
+                 .group_by(Absence.ssid_hash).all())
 
-    _abs_ssids = {r.ssid for r in ssid_rows if r.ssid}
+    _abs_ssids = {r.ssid_hash for r in ssid_rows if r.ssid_hash}
     _stu_enroll = {}
     if _abs_ssids:
         _stu_enroll = {
-            s.ssid: s for s in Student.query
-                .with_entities(Student.ssid, Student.enter_date, Student.exit_date)
-                .filter(Student.ssid.in_(_abs_ssids)).all()
+            s.ssid_hash: s for s in Student.query
+                .with_entities(Student.ssid_hash, Student.enter_date, Student.exit_date)
+                .filter(Student.ssid_hash.in_(_abs_ssids)).all()
         }
 
     def _enrolled_days(s):
@@ -5451,7 +5549,7 @@ def absenteeism():
 
     borderline_count = chronic_count = severe_count = 0
     for r in ssid_rows:
-        stu = _stu_enroll.get(r.ssid)
+        stu = _stu_enroll.get(r.ssid_hash)
         if not stu:
             continue
         enrolled = _enrolled_days(stu)
@@ -5502,12 +5600,12 @@ def absenteeism():
     _eth_map = {'100':'Native American','200':'Asian','300':'Pacific Islander',
                 '400':'Filipino','500':'Hispanic/Latino','600':'African American',
                 '700':'White','900':'Two or More Races'}
-    ssid_eth = {s.ssid: s.ethnicity for s in
-                Student.query.with_entities(Student.ssid, Student.ethnicity)
-                .filter(Student.ssid.in_(_abs_ssids)).all()} if _abs_ssids else {}
+    ssid_eth = {s.ssid_hash: s.ethnicity for s in
+                Student.query.with_entities(Student.ssid_hash, Student.ethnicity)
+                .filter(Student.ssid_hash.in_(_abs_ssids)).all()} if _abs_ssids else {}
     eth_dict = defaultdict(int)
     for r in ssid_rows:
-        eth = ssid_eth.get(r.ssid, None)
+        eth = ssid_eth.get(r.ssid_hash, None)
         eth_dict[_eth_map.get(eth, 'Unknown')] += r.cnt
     ethnicity_data = sorted(
         [(label, cnt, round(cnt / total_absences * 100, 1) if total_absences else 0)
@@ -5612,7 +5710,7 @@ def attendance_rates():
         if site_obj:
             abs_q = abs_q.filter(Absence.site_id == site_obj.id)
     ssid_abs = defaultdict(int)
-    for a in abs_q.with_entities(Absence.ssid, func.count(Absence.id)).group_by(Absence.ssid).all():
+    for a in abs_q.with_entities(Absence.ssid_hash, func.count(Absence.id)).group_by(Absence.ssid_hash).all():
         if a[0]:
             ssid_abs[a[0]] = a[1]
 
@@ -5631,7 +5729,7 @@ def attendance_rates():
     course_ssids = defaultdict(list)
     if course_ids:
         enroll_rows = (
-            db.session.query(student_course.c.course_id, Student.ssid)
+            db.session.query(student_course.c.course_id, Student.ssid_hash)
             .join(Student, Student.id == student_course.c.student_id)
             .filter(student_course.c.course_id.in_(course_ids),
                     student_course.c.leave_date.is_(None))
@@ -5720,24 +5818,25 @@ def absences():
     if abs_types:
         query = query.filter(Absence.abs_desc.in_(abs_types))
     if search:
-        name_ssids = db.session.query(Student.ssid).filter(
+        # Absence.ssid is encrypted — ciphertext can't be ilike()'d, so the old "search by
+        # SSID text" behavior is dropped here (same limitation as Parent/User email search).
+        name_ssids = db.session.query(Student.ssid_hash).filter(
             db.or_(
                 Student.first_name.ilike(f'%{search}%'),
                 Student.last_name.ilike(f'%{search}%'),
             ),
-            Student.ssid.isnot(None), Student.ssid != ''
+            Student.ssid_hash.isnot(None)
         ).subquery()
         query = query.filter(
             db.or_(
-                Absence.ssid.ilike(f'%{search}%'),
                 Absence.abs_desc.ilike(f'%{search}%'),
-                Absence.ssid.in_(name_ssids),
+                Absence.ssid_hash.in_(name_ssids),
             )
         )
 
     # Demographic filters — resolve matching SSIDs via Student table
     if subgroups or english_status or gender_filters:
-        stu_q = Student.query.with_entities(Student.ssid).filter(Student.ssid.isnot(None), Student.ssid != '')
+        stu_q = Student.query.with_entities(Student.ssid_hash).filter(Student.ssid_hash.isnot(None))
         if english_status:
             stu_q = stu_q.filter(Student.english_status.in_(english_status))
         if gender_filters:
@@ -5755,23 +5854,28 @@ def absences():
             if conds:
                 stu_q = stu_q.filter(db.and_(*conds))
         matching_ssids = [r[0] for r in stu_q.all()]
-        query = query.filter(Absence.ssid.in_(matching_ssids))
+        query = query.filter(Absence.ssid_hash.in_(matching_ssids))
 
     total      = query.count()
     absences_q = query.order_by(Absence.school_yr.desc(), Absence.site_id.asc()).offset(offset).limit(per_page).all()
     pagination = Pagination(page=page, per_page=per_page, total=total, css_framework='bootstrap5')
     grades     = _GRADE_LIST
 
-    # Build ssid → full name and ssid → student.id lookups for the current page
+    # Build ssid → full name and ssid → student.id lookups for the current page. `absence.ssid`
+    # in the template decrypts to plaintext via the property, so these dicts stay keyed by
+    # plaintext too (bounded to one page's worth of absences, so decrypting each is cheap) —
+    # the Student-side lookup itself still has to go through ssid_hash.
     page_ssids = {a.ssid for a in absences_q if a.ssid}
     if page_ssids:
+        ssid_to_hash = {s: hash_ssid(s, current_app.config['SECRET_KEY']) for s in page_ssids}
         stu_rows = (Student.query
-                           .with_entities(Student.ssid, Student.id, Student.first_name,
+                           .with_entities(Student.ssid_hash, Student.id, Student.first_name,
                                           Student.last_name, Student.student_id)
-                           .filter(Student.ssid.in_(page_ssids)).all())
-        ssid_names   = {s.ssid: f"{s.last_name}, {s.first_name}" for s in stu_rows}
-        ssid_ids     = {s.ssid: s.id for s in stu_rows}
-        ssid_stu_ids = {s.ssid: s.student_id for s in stu_rows}
+                           .filter(Student.ssid_hash.in_(ssid_to_hash.values())).all())
+        stu_by_hash  = {s.ssid_hash: s for s in stu_rows}
+        ssid_names   = {p: f"{stu_by_hash[h].last_name}, {stu_by_hash[h].first_name}" for p, h in ssid_to_hash.items() if h in stu_by_hash}
+        ssid_ids     = {p: stu_by_hash[h].id for p, h in ssid_to_hash.items() if h in stu_by_hash}
+        ssid_stu_ids = {p: stu_by_hash[h].student_id for p, h in ssid_to_hash.items() if h in stu_by_hash}
     else:
         ssid_names   = {}
         ssid_ids     = {}
@@ -5780,21 +5884,23 @@ def absences():
     # Build site_id → site_name lookup
     site_id_names = {s.id: s.site_name for s in Site.query.with_entities(Site.id, Site.site_name).all()}
 
-    # Student totals — same filters, grouped by ssid, sorted by total desc
+    # Student totals — same filters, grouped by ssid, sorted by total desc. The raw SSID is
+    # never displayed for this table (only name/grade/site/student_id are), so this stays in
+    # ssid_hash space throughout — no decryption needed for the whole district's worth of rows.
     totals_q = (
-        query.with_entities(Absence.ssid, func.count(Absence.id).label('total'))
-        .group_by(Absence.ssid)
+        query.with_entities(Absence.ssid_hash, func.count(Absence.id).label('total'))
+        .group_by(Absence.ssid_hash)
         .order_by(func.count(Absence.id).desc())
         .all()
     )
-    all_ssids = {r.ssid for r in totals_q if r.ssid}
+    all_ssids = {r.ssid_hash for r in totals_q if r.ssid_hash}
     if all_ssids:
         stu_info_rows = (Student.query
-                         .with_entities(Student.ssid, Student.id, Student.first_name,
+                         .with_entities(Student.ssid_hash, Student.id, Student.first_name,
                                         Student.last_name, Student.grade, Student.site_id,
                                         Student.enter_date, Student.exit_date, Student.student_id)
-                         .filter(Student.ssid.in_(all_ssids)).all())
-        stu_info = {s.ssid: s for s in stu_info_rows}
+                         .filter(Student.ssid_hash.in_(all_ssids)).all())
+        stu_info = {s.ssid_hash: s for s in stu_info_rows}
     else:
         stu_info = {}
 
@@ -5825,20 +5931,20 @@ def absences():
 
     all_student_totals = []
     for r in totals_q:
-        enrolled = _enrolled_days(stu_info[r.ssid]) if r.ssid in stu_info else '—'
+        enrolled = _enrolled_days(stu_info[r.ssid_hash]) if r.ssid_hash in stu_info else '—'
         if isinstance(enrolled, int) and enrolled > 0:
             abs_pct = round(r.total / enrolled * 100, 1)
         else:
             abs_pct = None
         standing = _standing(r.total, enrolled)
         all_student_totals.append({
-            'ssid':         r.ssid,
+            'ssid_hash':    r.ssid_hash,
             'total':        r.total,
-            'name':         f"{stu_info[r.ssid].last_name}, {stu_info[r.ssid].first_name}" if r.ssid in stu_info else '—',
-            'student_id':   stu_info[r.ssid].id if r.ssid in stu_info else None,
-            'stu_num':      stu_info[r.ssid].student_id if r.ssid in stu_info else '—',
-            'grade':        stu_info[r.ssid].grade if r.ssid in stu_info else '—',
-            'site':         site_id_names.get(stu_info[r.ssid].site_id, '—') if r.ssid in stu_info else '—',
+            'name':         f"{stu_info[r.ssid_hash].last_name}, {stu_info[r.ssid_hash].first_name}" if r.ssid_hash in stu_info else '—',
+            'student_id':   stu_info[r.ssid_hash].id if r.ssid_hash in stu_info else None,
+            'stu_num':      stu_info[r.ssid_hash].student_id if r.ssid_hash in stu_info else '—',
+            'grade':        stu_info[r.ssid_hash].grade if r.ssid_hash in stu_info else '—',
+            'site':         site_id_names.get(stu_info[r.ssid_hash].site_id, '—') if r.ssid_hash in stu_info else '—',
             'enrolled_days': enrolled,
             'abs_pct':      abs_pct,
             'standing':     standing,
@@ -5899,10 +6005,17 @@ def discipline_dashboard():
     minor_count     = sum(1 for i in all_inc if i.minor)
     total_susp_days = sum(i.suspended_days or 0 for i in all_inc)
 
-    # Student lookup: ssid → (gender, grade)
-    students_all = Student.query.with_entities(Student.ssid, Student.gender, Student.grade).filter(Student.ssid.isnot(None)).all()
-    ssid_gender  = {s.ssid: s.gender for s in students_all}
-    ssid_grade   = {s.ssid: s.grade  for s in students_all}
+    # Student lookup: sisid → (gender, grade). Incident.sisid stays plaintext, so rather than
+    # decrypting Student.ssid for the whole district just to build this dict, hash the (already
+    # plaintext) incident sisids we actually have and look students up by ssid_hash instead —
+    # bounded to students who actually have an incident, and no decryption needed either side.
+    _secret_key = current_app.config['SECRET_KEY']
+    incident_hashes = {hash_ssid(i.sisid, _secret_key) for i in all_inc if i.sisid}
+    students_all = (Student.query
+                     .with_entities(Student.ssid_hash, Student.gender, Student.grade)
+                     .filter(Student.ssid_hash.in_(incident_hashes)).all()) if incident_hashes else []
+    hash_gender = {s.ssid_hash: s.gender for s in students_all}
+    hash_grade  = {s.ssid_hash: s.grade  for s in students_all}
 
     # Incident rate per 100 enrolled students
     enrolled_q = Student.query.filter(
@@ -5954,7 +6067,7 @@ def discipline_dashboard():
     _gen_map   = {'M': 'Male', 'F': 'Female', 'X': 'Non-Binary', 'U': 'Unknown'}
     gender_dict = defaultdict(int)
     for i in all_inc:
-        g = ssid_gender.get(i.sisid, 'Unknown') if i.sisid else 'Unknown'
+        g = hash_gender.get(hash_ssid(i.sisid, _secret_key), 'Unknown') if i.sisid else 'Unknown'
         gender_dict[_gen_map.get(g, 'Unknown')] += 1
     gender_labels = list(gender_dict.keys())
     gender_counts = list(gender_dict.values())
@@ -5963,7 +6076,7 @@ def discipline_dashboard():
     _grade_order = ['TK','KN','1','2','3','4','5','6','7','8','9','10','11','12']
     grade_dict   = defaultdict(int)
     for i in all_inc:
-        gr = ssid_grade.get(i.sisid, 'N/A') if i.sisid else 'N/A'
+        gr = hash_grade.get(hash_ssid(i.sisid, _secret_key), 'N/A') if i.sisid else 'N/A'
         grade_dict[gr] += 1
     grade_sorted  = sorted(grade_dict.items(), key=lambda x: _grade_order.index(x[0]) if x[0] in _grade_order else 99)
     grade_labels  = [g for g, _ in grade_sorted]
@@ -6049,7 +6162,17 @@ def incidents():
     incidents_q = query.order_by(Incident.incident_date.desc()).offset(offset).limit(per_page).all()
     pagination  = Pagination(page=page, per_page=per_page, total=total, css_framework='bootstrap5')
     sites       = sorted({i.site for i in Incident.query.with_entities(Incident.site).distinct() if i.site})
-    ssid_to_id  = {s.ssid: s.id for s in Student.query.with_entities(Student.ssid, Student.id).filter(Student.ssid.isnot(None)).all()}
+    # Incident.sisid stays plaintext, so rather than decrypting Student.ssid district-wide,
+    # hash this page's (already plaintext) sisids and look students up by ssid_hash — bounded
+    # to the current page, and no decryption needed on either side. See discipline() above
+    # for the same pattern.
+    _secret_key = current_app.config['SECRET_KEY']
+    page_hashes = {hash_ssid(i.sisid, _secret_key) for i in incidents_q if i.sisid}
+    stu_by_hash = (Student.query.with_entities(Student.ssid_hash, Student.id)
+                   .filter(Student.ssid_hash.in_(page_hashes)).all()) if page_hashes else []
+    hash_to_id  = {s.ssid_hash: s.id for s in stu_by_hash}
+    ssid_to_id  = {i.sisid: hash_to_id[hash_ssid(i.sisid, _secret_key)]
+                   for i in incidents_q if i.sisid and hash_ssid(i.sisid, _secret_key) in hash_to_id}
 
     return render_template('incidents.html',
         incidents=incidents_q, pagination=pagination, per_page=per_page,
@@ -6297,10 +6420,11 @@ def parents():
 
     query = Parent.query
     if search:
+        # Parent.email is encrypted at rest, so it can't be searched with ilike() against
+        # ciphertext — dropped from this OR, matching /users' own email-less search.
         query = query.filter(
             db.or_(Parent.first_name.ilike(f'%{search}%'),
-                   Parent.last_name.ilike(f'%{search}%'),
-                   Parent.email.ilike(f'%{search}%'))
+                   Parent.last_name.ilike(f'%{search}%'))
         )
 
     total      = query.count()
@@ -6328,7 +6452,24 @@ def parent_details(parent_id):
         s.site_id in current_user.allowed_site_ids for s in parent.students
     ):
         abort(403)
-    return render_template('parent_details.html', parent=parent,
+
+    # parent.students holds one row per school year per linked child — bulk upload
+    # links every year's Student row for a stu_id (see _process_parents_rows), since
+    # Student is unique on (student_id, schoolyr). Collapse that to one row per
+    # child so the same student doesn't list once per year, preferring the record
+    # for the active School Year filter when the child has one that year.
+    from collections import defaultdict
+    schoolyr_filter = session.get('active_schoolyr', '')
+    by_student_id = defaultdict(list)
+    for s in parent.students:
+        by_student_id[s.student_id].append(s)
+    linked_students = []
+    for rows in by_student_id.values():
+        match = next((r for r in rows if r.schoolyr == schoolyr_filter), None) if schoolyr_filter else None
+        linked_students.append(match or max(rows, key=lambda r: r.schoolyr or ''))
+    linked_students.sort(key=lambda s: (s.last_name or '', s.first_name or ''))
+
+    return render_template('parent_details.html', parent=parent, linked_students=linked_students,
                            current_page_name=f'{parent.first_name} {parent.last_name}')
 
 
@@ -6397,10 +6538,15 @@ def calpads_compliance():
         return len(rows), rows
 
     # Identity & Demographics
-    ssid_count,    ssid_stu    = run_check(base.filter(db.or_(Student.ssid.is_(None),       Student.ssid == '')))
-    ssid_fmt_count, ssid_fmt_stu = run_check(base.filter(
-        Student.ssid.isnot(None), Student.ssid != '', ~Student.ssid.op('REGEXP')('^[0-9]{10}$')
-    ))
+    ssid_count,    ssid_stu    = run_check(base.filter(Student.ssid_hash.is_(None)))
+    # SSID format (must be exactly 10 digits) can't be checked with SQL REGEXP against an
+    # encrypted column, so this one filters in Python instead of through run_check().
+    import re as _re
+    ssid_fmt_stu = [
+        s for s in base.filter(Student.ssid_hash.isnot(None)).order_by(Student.last_name, Student.first_name).all()
+        if s.ssid and not _re.match(r'^[0-9]{10}$', s.ssid)
+    ]
+    ssid_fmt_count = len(ssid_fmt_stu)
     dob_count,     dob_stu     = run_check(base.filter(Student.date_of_birth.is_(None)))
     gnd_m_count,   gnd_m_stu   = run_check(base.filter(db.or_(Student.gender.is_(None),     Student.gender == '')))
     gnd_i_count,   gnd_i_stu   = run_check(base.filter(Student.gender.isnot(None), Student.gender != '', ~Student.gender.in_(list(VALID_GENDER))))
@@ -6428,12 +6574,12 @@ def calpads_compliance():
     over_days_count, over_days_stu = 0, []
     if total_school_days:
         abs_per_ssid = (
-            db.session.query(Absence.ssid.label('ssid'), func.count(Absence.id).label('abs_cnt'))
+            db.session.query(Absence.ssid_hash.label('ssid_hash'), func.count(Absence.id).label('abs_cnt'))
             .filter(Absence.school_yr == schoolyr)
-            .group_by(Absence.ssid).subquery()
+            .group_by(Absence.ssid_hash).subquery()
         )
         over_days_count, over_days_stu = run_check(
-            base.join(abs_per_ssid, abs_per_ssid.c.ssid == Student.ssid)
+            base.join(abs_per_ssid, abs_per_ssid.c.ssid_hash == Student.ssid_hash)
                 .filter(abs_per_ssid.c.abs_cnt > total_school_days)
         )
 

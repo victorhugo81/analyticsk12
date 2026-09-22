@@ -73,6 +73,7 @@ def create_app(config_name='default'):
     limiter.init_app(app)
     scheduler.init_app(app)
     login_manager.login_view = "routes.login"
+    login_manager.login_message = ""  # Suppress "Please log in to access this page." on redirect
 
     # Warn if rate-limit storage is in-memory (ineffective across restarts)
     if app.config.get('RATELIMIT_STORAGE_URI', 'memory://') == 'memory://':

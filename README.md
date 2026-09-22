@@ -14,7 +14,7 @@ AnalyticsK12 is a K-12 school district analytics platform built with Flask and M
 ## Features
 
 - **Multi-site analytics dashboards** — Demographics, SWD, English Learner Progress, Absenteeism, Discipline, Enrollment (K–6, Middle, High School), Graduation Status, Equity Gaps, and Early Warning dashboards with Chart.js visualizations and PDF/print export.
-- **Graduation tracking** — Configurable subject-area credit requirements (English, Math, etc., with department/keyword-based course matching and admin-defined grade spans, e.g. Algebra I due by 9th grade vs. Social Science phased in from 10th–12th), and a Graduation Status dashboard showing every high schooler's on-track/behind/credit-deficient standing against those requirements — status reflects whichever subject is furthest behind its own pace, not just a total-credits count.
+- **Graduation tracking** — Configurable subject-area credit requirements (English, Math, etc., with department/keyword-based course matching and admin-defined grade spans, e.g. Algebra I due by 9th grade vs. Social Science phased in from 10th–12th), and a Graduation Status dashboard showing every high schooler's on-track/behind/credit-deficient standing against those requirements — status reflects whichever subject is furthest behind its own pace, not just a total-credits count. Sites can be flagged as a Continuation track with lower per-subject (and total) credit targets than Standard sites.
 - **Equity Gaps dashboard** — Chronic absenteeism and suspension rate gaps for key student subgroups (SWD, EL, FRM, foster, homeless) measured against the district baseline.
 - **English Learner Progress** — Language proficiency status breakdown (EL/RFEP/IFEP/EO/TBD), reclassification rate, and chronic-absence/failing-grade signals narrowed to the EL population.
 - **Early Warning System with MTSS tracking** — A weighted, continuous 0–100 risk score (not just a flag count) combining attendance, academics, and behavior, plus built-in Tier 1/2/3 intervention logging so staff can record what's been tried for an at-risk student and whether it worked.
@@ -25,7 +25,7 @@ AnalyticsK12 is a K-12 school district analytics platform built with Flask and M
 - **FTP integration** — Configure an FTP server and schedule automatic imports with per-day-of-week scheduling, start/stop dates, and last-run status tracking.
 - **Organization settings** — Configure organization name, logo, SMTP email, FTP connection, academic calendar (current school year, first/last school day), graduation credit requirements, and dashboard card visibility.
 - **Role-based access control** — Admin, District Administrator, School Administrator, Teacher, and Staff roles with route-level enforcement. Only Admin and District Administrator can view data across every school; School Administrator can be assigned to more than one campus by an Admin/District Administrator, everyone else is scoped to their own site.
-- **Encrypted credentials** — User email addresses, SMTP passwords, and FTP credentials stored encrypted using Fernet symmetric encryption.
+- **Encrypted PII and credentials** — Email addresses (users, students, teachers, parents), phone numbers (parents, site principals), student statewide IDs (SSID), SMTP passwords, and FTP credentials all stored encrypted using Fernet symmetric encryption.
 - **Login security** — Rate limiting, account lockout after repeated failures, admin-initiated account unlock, forced password change on first login, minimum 12-character complexity requirement.
 - **Session-based global filters** — School year, site, snap date, and student status filters persist across all pages for the session.
 - **Upload log** — Every bulk import is logged with added/updated counts, uploader, timestamp, and error details.
@@ -97,15 +97,17 @@ flask --app main.py db upgrade
 ### Step 6: Seed initial data
 
 ```bash
-python installation/seed_data.py           # roles, default site, admin user
+python installation/seed_data.py           # roles, default site, admin user, default graduation requirements
 python installation/seed_academic_data.py  # demo sites, students, staff, absences, incidents, grades
 ```
 
 ### Step 7: Start the development server
 
 ```bash
-flask --app main.py run
+flask --app "main:create_app('development')" run
 ```
+
+> **Important:** Don't run `flask --app main.py run` (without the factory argument) — the Flask CLI then calls `create_app()` with no argument, which falls back to `ProductionConfig` and marks the session cookie `Secure`. Browsers silently discard `Secure` cookies over plain `http://localhost`, so every session-based feature (School Year/Site/Status filters, login itself) will appear broken.
 
 Open [http://127.0.0.1:5000](http://127.0.0.1:5000) and log in with the admin credentials created during seeding.
 
@@ -140,7 +142,7 @@ Graduation Status also depends on **Graduation Settings** (Organization → Grad
 - Login rate limiting (Flask-Limiter) and account lockout after repeated failures
 - CSRF protection on all forms (Flask-WTF)
 - Passwords hashed with scrypt; minimum 12-character complexity enforced
-- User emails encrypted at rest (Fernet); never stored in plaintext
+- PII encrypted at rest (Fernet), never stored in plaintext: user/student/teacher/parent email addresses, parent/site-principal phone numbers, and student statewide IDs (SSID). SSIDs additionally use a deterministic HMAC blind index so dashboards can still join/group/filter by student across tables without ever decrypting.
 - SMTP and FTP passwords encrypted at rest
 - Forced password change on first login for bulk-created users
 - Security headers applied via `after_request` in `main.py`

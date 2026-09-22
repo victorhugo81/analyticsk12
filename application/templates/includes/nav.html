@@ -5,7 +5,7 @@
 
     <div class="sidenav-header">
       <i class="fas fa-times p-3 cursor-pointer text-white opacity-5 position-absolute end-0 top-0 d-none d-xl-none" aria-hidden="true" id="iconSidenav"></i>
-      <a class="navbar-brand px-4 py-3 m-0" href="{{ url_for('routes.index') }}" >
+      <a class="navbar-brand px-4 py-3 m-0 d-none d-xl-block" href="{{ url_for('routes.index') }}" >
         <img src="{{ url_for('static', filename='img/logo.png') }}" class="navbar-brand-img" alt="Analyticsk12">
       </a>
     </div>
@@ -336,9 +336,33 @@
 
 
 
-        <!-- Row 2: Global filters (always visible, inside the navbar) -->
-        <div class="global-filter-bar d-flex flex-nowrap align-items-center justify-content-center gap-3 pt-1">
-          <span class="text-xs text-uppercase fw-bold text-muted" style="white-space:nowrap;">Filters:</span>
+        <!-- Mobile/tablet-only logo, centered above the filters. Desktop shows
+             the logo in the sidebar instead (hidden there below xl). -->
+        <div class="d-xl-none d-flex justify-content-center py-1">
+          <img src="{{ url_for('static', filename='img/logo.png') }}" alt="AnalyticsK12" style="max-height:2rem;">
+        </div>
+
+        <!-- Mobile/tablet-only: Filters accordion toggle + nav menu toggle,
+             same row, same right-hand alignment. Filters stays collapsed by
+             default; d-xl-none hides both on desktop where filters are
+             always expanded (d-xl-block below) and the sidebar is always visible. -->
+        <div class="d-xl-none d-flex align-items-center justify-content-end gap-2 mb-1">
+          <button class="btn btn-white btn-sm d-flex align-items-center gap-1 px-2 py-1"
+                  type="button" data-bs-toggle="collapse" data-bs-target="#globalFiltersCollapse"
+                  aria-expanded="false" aria-controls="globalFiltersCollapse" id="globalFiltersToggle">
+            <span class="text-xs text-uppercase fw-bold text-muted">Filters</span>
+            <i class="material-symbols-rounded" style="font-size:1rem;">expand_more</i>
+          </button>
+          <button class="mobile-menu-toggle" id="iconNavbarSidenav"
+                  type="button" aria-label="Open navigation menu" aria-expanded="false" aria-controls="sidenav-main">
+            <span></span><span></span><span></span>
+          </button>
+        </div>
+
+        <!-- Row 2: Global filters (always visible on desktop; collapsible accordion on mobile/tablet) -->
+        <div class="collapse d-xl-block" id="globalFiltersCollapse">
+        <div class="global-filter-bar d-flex flex-column flex-xl-row flex-xl-nowrap align-items-stretch align-items-xl-center justify-content-xl-center gap-3 pt-1">
+          <span class="text-xs text-uppercase fw-bold text-muted d-none d-xl-inline" style="white-space:nowrap;">Filters:</span>
 
         <!-- School Year -->
         <div class="d-flex align-items-center gap-1">
@@ -404,130 +428,8 @@
           {% endif %}
         </div>
 
-        </div><!-- end row 2 filters -->
-
-
-
-        <!-- mobile menu row -->
-        <div class="d-flex align-items-center w-100">
-
-
-
-
-
-
-
-
-
-
-
-
-
-          <!-- Mobile menu + user (pushed right) -->
-          <div class="ms-auto d-flex align-items-center gap-3">
-            <div class="mobile-menu mobileOnly" id="menuToggle">
-              <button class="mobile-menu-toggle" aria-expanded="false" aria-controls="menu" aria-label="Open navigation menu">
-                <span></span><span></span><span></span>
-              </button>
-
-
-                <ul class="mobile-menu" id="menu">  
-                  <li class="list-group-item">
-                    <a class="{% if current_page_name == 'Dashboard' %} active{% else %}text-dark{% endif %}" href="{{ url_for('routes.index') }}">Dashboard</a>
-                  </li>
-                  <!-- Dashboards Items -->
-                  <li class="list-group-item nav-cat-list">
-                    <h6 class="ms-2 text-uppercase text-xxs text-dark font-weight-bolder opacity-5">Dashboards</h6>
-                  </li>
-                  <li class="list-group-item">
-                    <a class="{% if request.endpoint in ['routes.demographics'] %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.demographics') }}">Demographics</a>
-                  </li>
-                  <li class="list-group-item">
-                    <a class="{% if request.endpoint in ['routes.absenteeism'] %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.absenteeism') }}">Absenteeism</a>
-                  </li>
-                  <li class="list-group-item">
-                    <a class="{% if request.endpoint in ['routes.discipline_dashboard'] %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.discipline_dashboard') }}">Discipline</a>
-                  </li>
-                  <li class="list-group-item">
-                    <a class="{% if request.endpoint in ['routes.swd_dashboard'] %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.swd_dashboard') }}">SWD</a>
-                  </li>
-                  <li class="list-group-item">
-                    <a class="{% if request.endpoint in ['routes.el_progress_dashboard'] %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.el_progress_dashboard') }}">EL Progress</a>
-                  </li>
-                  <li class="list-group-item">
-                    <a class="{% if request.endpoint in ['routes.enrollment'] %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.enrollment') }}">Enrollment</a>
-                  </li>
-                  <li class="list-group-item">
-                    <a class="{% if request.endpoint in ['routes.attendance_rates'] %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.attendance_rates') }}">Attendance Rates</a>
-                  </li>
-                  <li class="list-group-item">
-                    <a class="{% if request.endpoint in ['routes.early_warning'] %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.early_warning') }}">Early Warning</a>
-                  </li>
-                  <li class="list-group-item">
-                    <a class="{% if request.endpoint in ['routes.calpads_compliance'] %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.calpads_compliance') }}">CALPADS</a>
-                  </li>
-                  <li class="list-group-item">
-                    <a class="{% if request.endpoint in ['routes.graduation_status'] %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.graduation_status') }}">Graduation</a>
-                  </li>
-                  <li class="list-group-item">
-                    <a class="{% if request.endpoint in ['routes.equity_gaps_dashboard'] %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.equity_gaps_dashboard') }}">Equity Gaps</a>
-                  </li>
-                  <!-- End Dashboards Items -->
-
-                  <!-- Academic Items -->
-                  <li class="list-group-item nav-cat-list">
-                    <h6 class="ms-2 text-uppercase text-xxs text-dark font-weight-bolder opacity-5">Academic</h6>
-                  </li>
-                  <li class="list-group-item">
-                    <a class="{% if request.endpoint in ['routes.students', 'routes.add_student', 'routes.student_details'] %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.students') }}">Students</a>
-                  </li>
-                  <li class="list-group-item">
-                    <a class="{% if request.endpoint in ['routes.teachers', 'routes.add_teacher', 'routes.teacher_details', 'routes.edit_teacher'] %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.teachers') }}">Teachers</a>
-                  </li>
-                  <li class="list-group-item">
-                    <a class="{% if request.endpoint in ['routes.courses', 'routes.add_course', 'routes.course_details', 'routes.edit_course'] %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.courses') }}">Courses</a>
-                  </li>
-                  <li class="list-group-item">
-                    <a class="{% if request.endpoint in ['routes.parents', 'routes.add_parent', 'routes.parent_details', 'routes.edit_parent'] %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.parents') }}">Parents</a>
-                  </li>
-                  <!-- End Academic Items -->
-
-                  <!-- Settings -->
-                  <li class="list-group-item nav-cat-list">
-                    <h6 class="ms-2 text-uppercase text-xxs text-dark font-weight-bolder opacity-5">Settings</h6>
-                  </li>
-                  {% if current_user.is_tech_role or current_user.is_admin %}
-                  <li class="list-group-item">
-                    <a class="{% if current_path == '/users' %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.users') }}">Users</a>
-                  </li>
-                  {% endif %}
-                  {% if current_user.is_admin %}
-                  <li class="list-group-item">
-                    <a class="{% if current_path == '/roles' %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.roles') }}">Roles</a>
-                  </li>
-                  <li class="list-group-item">
-                    <a class="{% if current_path == '/organization' %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.organization') }}">Data Integration</a>
-                  </li>
-                  <li class="list-group-item">
-                    <a class="{% if current_path == '/sites' %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.sites') }}">Sites</a>
-                  </li>
-                  <li class="list-group-item">
-                    <a class="{% if current_path == '/notifications' %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.notifications') }}">Notifications</a>
-                  </li>
-                  <li class="list-group-item">
-                    <a class="{% if current_path == '/graduation-settings' %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.graduation_settings') }}">Graduation Settings</a>
-                  </li>
-                  {% endif %}
-                  <li class="list-group-item">
-                    <a class="{% if current_path == '/profile' %}active{% else %}text-dark{% endif %}" href="{{ url_for('routes.profile') }}">Profile</a>
-                  </li>
-                  <!-- end mobile menu -->
-                </ul>
-            </div>
-          </div><!-- end ms-auto -->
-
-        </div><!-- end row 1 -->
-
+        </div><!-- end global-filter-bar -->
+        </div><!-- end globalFiltersCollapse -->
 
       </div><!-- end container-fluid -->
     </nav>

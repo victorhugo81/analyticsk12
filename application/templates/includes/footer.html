@@ -44,45 +44,6 @@
 
 
 
-<!-- Mobile menu toggle -->
-<script>
-(function () {
-  const toggle = document.querySelector('.mobile-menu-toggle');
-  const wrapper = document.getElementById('menuToggle');
-  if (!toggle || !wrapper) return;
-
-  function openMenu() {
-    wrapper.classList.add('is-open');
-    toggle.setAttribute('aria-expanded', 'true');
-    toggle.setAttribute('aria-label', 'Close navigation menu');
-  }
-
-  function closeMenu() {
-    wrapper.classList.remove('is-open');
-    toggle.setAttribute('aria-expanded', 'false');
-    toggle.setAttribute('aria-label', 'Open navigation menu');
-  }
-
-  toggle.addEventListener('click', function () {
-    wrapper.classList.contains('is-open') ? closeMenu() : openMenu();
-  });
-
-  // Close on Escape key
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && wrapper.classList.contains('is-open')) {
-      closeMenu();
-      toggle.focus();
-    }
-  });
-
-  // Close when a nav link is clicked
-  document.querySelectorAll('#menu a').forEach(function (link) {
-    link.addEventListener('click', closeMenu);
-  });
-})();
-</script>
-
-
 <!--   Core JS Files   -->
 <script src="{{ url_for('static', filename='js/core/popper.min.js') }}"></script>
 <script src="{{ url_for('static', filename='js/core/bootstrap.min.js') }}"></script>
@@ -186,6 +147,22 @@ Scrollbar.init(document.querySelector('#sidenav-scrollbar'), options);
 </script>
 
 <script src="{{ url_for('static', filename='js/material-dashboard.js') }}"></script>
+
+<!-- Keep the mobile nav toggle's accessible state in sync with the sidebar.
+     The icon shape itself morphs via CSS off .g-sidenav-pinned; this just
+     updates aria-expanded/aria-label for screen readers after
+     toggleSidenav() (in material-dashboard.js) flips that class. -->
+<script>
+(function () {
+  var toggle = document.getElementById('iconNavbarSidenav');
+  if (!toggle) return;
+  toggle.addEventListener('click', function () {
+    var open = document.body.classList.contains('g-sidenav-pinned');
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    toggle.setAttribute('aria-label', open ? 'Close navigation menu' : 'Open navigation menu');
+  });
+})();
+</script>
 </body>
 
 </html>

@@ -7,7 +7,7 @@
 <div class="row">
     <div class="col-12">
         <div class="main-card-box card my-4">
-        <div class="card-header p-0 position-relative mt-n4 mx-3 z-index-2">
+        <div class="card-header p-0 position-relative mt-n4 z-index-2">
         <div class="bg-gradient-main custom-title-card">
           <h2 class="text-white text-capitalize ps-3"><i class="material-symbols-rounded opacity-5">school</i> {{ current_page_name }}</h2>
           </div>
@@ -27,7 +27,13 @@
                     across all 4 years — so a freshman who's finished their actual 9th-grade coursework shows as On Track instead
                     of being penalized for subjects (like CTE or 11th/12th-grade Social Science) that aren't due yet.
                 </p>
-                <span class="badge bg-gradient-dark">Total Credits Required: {{ '%.2f' | format(total_credits) }}</span>
+                <p class="text-sm text-muted mb-1">
+                    Each subject area can set a lower <strong>Continuation</strong> credit target for sites whose
+                    <strong>Graduation Track</strong> (set on the Site record) is Continuation — leave it blank to use
+                    the same amount as Standard.
+                </p>
+                <span class="badge bg-gradient-dark">Standard Total: {{ '%.2f' | format(total_credits) }}</span>
+                <span class="badge bg-gradient-secondary">Continuation Total: {{ '%.2f' | format(total_credits_continuation) }}</span>
             </div>
 
             <div class="table-per-page-section">
@@ -46,11 +52,9 @@
                 <tr>
                   <th class="text-uppercase text-xxs font-weight-bolder text-start" style="width:20px;">Order</th>
                   <th class="text-uppercase text-xxs font-weight-bolder text-center">Subject Area</th>
-                  <th class="text-uppercase text-xxs font-weight-bolder text-end">Credits</th>
+                  <th class="text-uppercase text-xxs font-weight-bolder text-center">Credits (Std)</th>
+                  <th class="text-uppercase text-xxs font-weight-bolder text-center">Credits (Cont.)</th>
                   <th class="text-uppercase text-xxs font-weight-bolder text-center">Departments</th>
-                  <th class="text-uppercase text-xxs font-weight-bolder text-center">Name Contains</th>
-                  <th class="text-uppercase text-xxs font-weight-bolder text-center">Name Excludes</th>
-                  <th class="text-uppercase text-xxs font-weight-bolder text-center">Catch-All</th>
                   <th class="text-uppercase text-xxs font-weight-bolder text-center">Actions</th>
                 </tr>
               </thead>
@@ -71,17 +75,15 @@
                       </div>
                     </div>
                   </td>
-                  <td class="text-end text-sm">{{ '%.2f' | format(req.credits_required) }}</td>
-                  <td class="text-center text-xs text-muted">{{ req.departments or '—' }}</td>
-                  <td class="text-center text-xs text-muted">{{ req.name_keywords or '—' }}</td>
-                  <td class="text-center text-xs text-muted">{{ req.name_exclude_keywords or '—' }}</td>
-                  <td class="text-center">
-                    {% if req.is_catch_all %}
-                    <span class="badge badge-sm bg-gradient-success">Yes</span>
+                  <td class="text-center text-sm">{{ '%.2f' | format(req.credits_required) }}</td>
+                  <td class="text-center text-sm">
+                    {% if req.credits_required_continuation is not none %}
+                      {{ '%.2f' | format(req.credits_required_continuation) }}
                     {% else %}
-                    <span class="text-muted text-xs">—</span>
+                      <span class="text-muted text-xs">same</span>
                     {% endif %}
                   </td>
+                  <td class="text-center text-xs text-muted">{{ req.departments or '—' }}</td>
                   <td class="align-middle">
                     <div class="d-flex justify-content-center gap-2">
                       <a href="{{ url_for('routes.edit_graduation_requirement', req_id=req.id) }}" type="button" class="btn table-button-edit font-weight-bold" aria-label="Edit subject area: {{ req.subject_name }}">
@@ -103,7 +105,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                  <td colspan="9" class="text-center text-muted py-4">No subject areas configured yet.</td>
+                  <td colspan="10" class="text-center text-muted py-4">No subject areas configured yet.</td>
                 </tr>
                 {% endfor %}
               </tbody>

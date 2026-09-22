@@ -4,7 +4,7 @@
 <div class="row">
   <div class="col-12">
     <div class="main-card-box card my-4">
-      <div class="card-header p-0 position-relative mt-n4 mx-3 z-index-2">
+      <div class="card-header p-0 position-relative mt-n4 z-index-2">
         <div class="bg-gradient-main shadow-dark border-radius-lg pt-4 pb-3">
           <h2 class="text-white text-capitalize ps-3">
             <i class="material-symbols-rounded opacity-5">family_restroom</i>
@@ -53,10 +53,10 @@
         <!-- Linked Students -->
         <p class="text-uppercase text-sm text-muted fw-bold mb-2 mt-5">
           Linked Students
-          <span class="badge bg-secondary ms-1">{{ parent.students | length }}</span>
+          <span class="badge bg-secondary ms-1">{{ linked_students | length }}</span>
         </p>
         <hr class="mt-0 mb-3">
-        {% if parent.students %}
+        {% if linked_students %}
         <div class="table-responsive">
           <table class="table align-items-center mb-0 table-striped">
             <thead>
@@ -69,7 +69,7 @@
               </tr>
             </thead>
             <tbody>
-              {% for student in parent.students %}
+              {% for student in linked_students %}
               <tr class="table-highlight-row">
                 <td>
                   <a href="{{ url_for('routes.student_details', student_id=student.id) }}"

@@ -8,7 +8,7 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from main import create_app, db
-from application.models import Organization, User, Role, Site
+from application.models import Organization, User, Role, Site, GraduationRequirement
 
 from werkzeug.security import generate_password_hash
 from sqlalchemy.exc import SQLAlchemyError
@@ -17,6 +17,30 @@ from sqlalchemy.exc import SQLAlchemyError
 
 
 
+
+# Standard subject-area credit requirements for the Graduation Status dashboard
+# (Settings > Graduation Settings). Sums to the 220-credit default (Organization.
+# grad_credits_required). Algebra I is sorted before Mathematics since it's a
+# carve-out of that department (name_keywords narrows it to Algebra courses only;
+# the broader Mathematics row catches everything else in that department).
+GRADUATION_REQUIREMENTS = [
+    dict(subject_name='English',      credits_required=40, departments='English',
+         sort_order=10, start_grade='9',  end_grade='12'),
+    dict(subject_name='Algebra I',     credits_required=10, departments='Mathematics',
+         name_keywords='Algebra', sort_order=20, start_grade='9',  end_grade='9'),
+    dict(subject_name='Mathematics',   credits_required=20, departments='Mathematics',
+         sort_order=30, start_grade='9',  end_grade='12'),
+    dict(subject_name='Science',       credits_required=30, departments='Life Science,Physical Science',
+         sort_order=40, start_grade='9',  end_grade='12'),
+    dict(subject_name='Social Science', credits_required=30, departments='Social Science',
+         sort_order=50, start_grade='10', end_grade='12'),
+    dict(subject_name='Physical Education', credits_required=20, departments='Physical Education',
+         sort_order=60, start_grade='9',  end_grade='10'),
+    dict(subject_name='Visual/Performing Arts & World Language', credits_required=10,
+         departments='Art,Music,Foreign Language', sort_order=70, start_grade='9', end_grade='12'),
+    dict(subject_name='Electives', credits_required=60, is_catch_all=True,
+         sort_order=999, start_grade='9', end_grade='12'),
+]
 
 # Load environment variables
 load_dotenv()
@@ -77,6 +101,14 @@ with app.app_context():
         else:
             db.session.add(Site(**site_data))
             print("Site created.")
+
+        # --- Graduation Requirements ---
+        for r in GRADUATION_REQUIREMENTS:
+            if not GraduationRequirement.query.filter_by(subject_name=r['subject_name']).first():
+                db.session.add(GraduationRequirement(**r))
+                print(f"Graduation requirement added: {r['subject_name']}")
+            else:
+                print(f"Graduation requirement already exists: {r['subject_name']}")
 
         # --- Admin User ---
         user = User.query.filter_by(email=admin_email).first()

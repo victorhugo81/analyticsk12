@@ -58,6 +58,9 @@ class Organization(db.Model):
     show_equity_gaps      = db.Column(db.Boolean, default=True, nullable=False, server_default='1')
     # Credits required to graduate — used by the Graduation Status dashboard
     grad_credits_required = db.Column(db.Integer, default=220, nullable=True, server_default='220')
+    # Manual fallback total for 'continuation' track sites (Site.grad_track). NULL falls back
+    # to grad_credits_required — only needed if a district wants a different fixed total.
+    grad_credits_required_continuation = db.Column(db.Integer, nullable=True)
     # When True, the Graduation Status dashboard sums GraduationRequirement.credits_required
     # instead of using the fixed grad_credits_required value.
     grad_auto_calculate_credits = db.Column(db.Boolean, default=True, nullable=False, server_default='1')
@@ -94,6 +97,10 @@ class GraduationRequirement(db.Model):
     id                     = db.Column(db.Integer, primary_key=True, autoincrement=True)
     subject_name           = db.Column(db.String(100), unique=True, nullable=False)
     credits_required       = db.Column(db.Numeric(6, 2), nullable=False, default=0)
+    # Credits required for this subject at a 'continuation' track site (Site.grad_track).
+    # NULL means "same as credits_required" — a subject doesn't need an explicit override
+    # unless a district's continuation program actually reduces it.
+    credits_required_continuation = db.Column(db.Numeric(6, 2), nullable=True)
     departments            = db.Column(db.Text, nullable=True)
     name_keywords          = db.Column(db.Text, nullable=True)
     name_exclude_keywords  = db.Column(db.Text, nullable=True)
@@ -243,14 +250,47 @@ class Site(db.Model):
     site_code = db.Column(db.String(100), nullable=False)
     site_address = db.Column(db.String(100), nullable=False)
     site_type = db.Column(db.String(100), nullable=False)
+    # Which GraduationRequirement credit targets apply to students at this site —
+    # 'standard' or 'continuation' (continuation schools typically require fewer credits).
+    # See GraduationRequirement.credits_required_continuation.
+    grad_track = db.Column(db.String(20), nullable=False, default='standard', server_default='standard')
     site_city = db.Column(db.String(50), nullable=True)
     site_state = db.Column(db.String(2), nullable=True)
     site_zip = db.Column(db.String(10), nullable=True)
     principal_first_name = db.Column(db.String(50), nullable=True)
     principal_last_name = db.Column(db.String(50), nullable=True)
-    principal_email = db.Column(db.String(120), nullable=True)
-    principal_phone = db.Column(db.String(20), nullable=True)
+    # Encrypted at rest — same scheme as Student.email/Teacher.email/Parent.email.
+    principal_email_enc = db.Column(db.Text, nullable=True)
+    principal_phone_enc = db.Column(db.Text, nullable=True)
     users = db.relationship('User', backref='site', lazy=True)
+
+    @property
+    def principal_email(self):
+        if not self.principal_email_enc:
+            return None
+        from flask import current_app
+        from application.utils import decrypt_mail_password
+        return decrypt_mail_password(self.principal_email_enc, current_app.config['DATA_ENCRYPTION_KEY']) or None
+
+    @principal_email.setter
+    def principal_email(self, value):
+        from flask import current_app
+        from application.utils import encrypt_mail_password
+        self.principal_email_enc = encrypt_mail_password(value, current_app.config['DATA_ENCRYPTION_KEY']) if value else None
+
+    @property
+    def principal_phone(self):
+        if not self.principal_phone_enc:
+            return None
+        from flask import current_app
+        from application.utils import decrypt_mail_password
+        return decrypt_mail_password(self.principal_phone_enc, current_app.config['DATA_ENCRYPTION_KEY']) or None
+
+    @principal_phone.setter
+    def principal_phone(self, value):
+        from flask import current_app
+        from application.utils import encrypt_mail_password
+        self.principal_phone_enc = encrypt_mail_password(value, current_app.config['DATA_ENCRYPTION_KEY']) if value else None
 
 
 # Association tables for many-to-many relationships
@@ -288,7 +328,12 @@ class Student(db.Model):
     middle_name   = db.Column(db.String(50), nullable=True)
     last_name     = db.Column(db.String(50), nullable=False)
     student_id    = db.Column(db.String(20), nullable=False)
-    ssid          = db.Column(db.String(20), nullable=True, index=True)
+    # Encrypted at rest (statewide student ID — treated as sensitive, distinct from the
+    # district-local student_id above). ssid_hash is a deterministic HMAC blind index
+    # (see utils.hash_ssid) so SQL can still JOIN/GROUP BY/filter on it without decrypting —
+    # Absence.ssid_hash mirrors this for the Student<->Absence join, since Absence has no FK.
+    ssid_enc      = db.Column(db.Text, nullable=True)
+    ssid_hash     = db.Column(db.String(64), nullable=True, index=True)
     cds_code      = db.Column(db.String(14), nullable=True)
     grade         = db.Column(db.String(5),  nullable=False)
     gender        = db.Column(db.String(1),  nullable=True)
@@ -305,9 +350,45 @@ class Student(db.Model):
     schoolyr      = db.Column(db.String(9),  nullable=True)
     foster        = db.Column(db.Boolean, nullable=True, default=False)
     sed504        = db.Column(db.Boolean, nullable=True, default=False)
-    email         = db.Column(db.String(120), nullable=True)
+    # Encrypted at rest (cryptography.fernet, DATA_ENCRYPTION_KEY) — same scheme as
+    # User.email/Parent.email. Not used in any ilike()/filter() anywhere in routes.py,
+    # so unlike Parent.email this didn't require dropping anything from a search feature.
+    email_enc     = db.Column(db.Text, nullable=True)
     site_id       = db.Column(db.Integer, db.ForeignKey('site.id', ondelete='CASCADE'), nullable=False)
     site          = db.relationship('Site', backref=db.backref('students', lazy=True))
+
+    @property
+    def email(self):
+        if not self.email_enc:
+            return None
+        from flask import current_app
+        from application.utils import decrypt_mail_password
+        return decrypt_mail_password(self.email_enc, current_app.config['DATA_ENCRYPTION_KEY']) or None
+
+    @email.setter
+    def email(self, value):
+        from flask import current_app
+        from application.utils import encrypt_mail_password
+        self.email_enc = encrypt_mail_password(value, current_app.config['DATA_ENCRYPTION_KEY']) if value else None
+
+    @property
+    def ssid(self):
+        if not self.ssid_enc:
+            return None
+        from flask import current_app
+        from application.utils import decrypt_mail_password
+        return decrypt_mail_password(self.ssid_enc, current_app.config['DATA_ENCRYPTION_KEY']) or None
+
+    @ssid.setter
+    def ssid(self, value):
+        from flask import current_app
+        from application.utils import encrypt_mail_password, hash_ssid
+        if value:
+            self.ssid_enc = encrypt_mail_password(value, current_app.config['DATA_ENCRYPTION_KEY'])
+            self.ssid_hash = hash_ssid(value, current_app.config['SECRET_KEY'])
+        else:
+            self.ssid_enc = None
+            self.ssid_hash = None
 
     # `courses` (via backref on Course.students) includes every course ever taken,
     # active or dropped. active_courses excludes dropped enrollments (leave_date set).
@@ -345,17 +426,40 @@ class Absence(db.Model):
         # GROUP BY ssid" (called 3x per Absenteeism page load alone) — this composite lets
         # MySQL satisfy both the filter and the grouping from one index instead of filtering
         # via ix_absence_schoolyr_site and then filesorting for the GROUP BY.
-        db.Index('ix_absence_schoolyr_ssid', 'school_yr', 'ssid'),
+        db.Index('ix_absence_schoolyr_ssid', 'school_yr', 'ssid_hash'),
     )
     id          = db.Column(db.Integer, primary_key=True, autoincrement=True)
     site_id     = db.Column(db.Integer, db.ForeignKey('site.id', ondelete='CASCADE'), nullable=False)
-    ssid        = db.Column(db.String(20), nullable=True, index=True)
+    # Encrypted at rest, same scheme as Student.ssid — ssid_hash is the deterministic
+    # blind index used for the Student<->Absence join (no FK between them) and every
+    # dashboard's GROUP BY ssid. See utils.hash_ssid.
+    ssid_enc    = db.Column(db.Text, nullable=True)
+    ssid_hash   = db.Column(db.String(64), nullable=True, index=True)
     grade       = db.Column(db.String(5),  nullable=True)
     abs_date    = db.Column(db.Date,         nullable=True)
     abs_desc    = db.Column(db.String(200), nullable=True)
     bell_period = db.Column(db.String(20),  nullable=True)
     school_yr   = db.Column(db.String(9),   nullable=True)
     site        = db.relationship('Site', backref=db.backref('absences', lazy=True))
+
+    @property
+    def ssid(self):
+        if not self.ssid_enc:
+            return None
+        from flask import current_app
+        from application.utils import decrypt_mail_password
+        return decrypt_mail_password(self.ssid_enc, current_app.config['DATA_ENCRYPTION_KEY']) or None
+
+    @ssid.setter
+    def ssid(self, value):
+        from flask import current_app
+        from application.utils import encrypt_mail_password, hash_ssid
+        if value:
+            self.ssid_enc = encrypt_mail_password(value, current_app.config['DATA_ENCRYPTION_KEY'])
+            self.ssid_hash = hash_ssid(value, current_app.config['SECRET_KEY'])
+        else:
+            self.ssid_enc = None
+            self.ssid_hash = None
 
 
 class Incident(db.Model):
@@ -401,11 +505,26 @@ class Teacher(db.Model):
     middle_name = db.Column(db.String(50), nullable=True)
     last_name   = db.Column(db.String(50), nullable=False)
     employee_id = db.Column(db.String(20), unique=True, nullable=False)
-    email       = db.Column(db.String(120), nullable=True)
+    # Encrypted at rest — same scheme as Student.email/Parent.email.
+    email_enc   = db.Column(db.Text, nullable=True)
     department  = db.Column(db.String(100), nullable=True)
     status      = db.Column(db.String(20), nullable=False, default='Active')
     site_id     = db.Column(db.Integer, db.ForeignKey('site.id', ondelete='CASCADE'), nullable=False)
     site        = db.relationship('Site', backref=db.backref('teachers', lazy=True))
+
+    @property
+    def email(self):
+        if not self.email_enc:
+            return None
+        from flask import current_app
+        from application.utils import decrypt_mail_password
+        return decrypt_mail_password(self.email_enc, current_app.config['DATA_ENCRYPTION_KEY']) or None
+
+    @email.setter
+    def email(self, value):
+        from flask import current_app
+        from application.utils import encrypt_mail_password
+        self.email_enc = encrypt_mail_password(value, current_app.config['DATA_ENCRYPTION_KEY']) if value else None
 
 
 class Course(db.Model):
@@ -448,11 +567,45 @@ class Parent(db.Model):
     middle_name  = db.Column(db.String(50), nullable=True)
     last_name    = db.Column(db.String(50), nullable=False)
     relationship = db.Column(db.String(50), nullable=False)
-    email        = db.Column(db.String(120), nullable=True)
-    phone        = db.Column(db.String(20), nullable=True)
+    # PII at rest — encrypted the same way as User.email (cryptography.fernet, keyed by
+    # DATA_ENCRYPTION_KEY). No hash/index column like User.email_hash: Parent.email was
+    # never unique and nothing does an exact DB-side lookup on it, only a Python-side
+    # dict build in _process_parents_rows() — see there. This does mean the parents list
+    # search can no longer ilike() against email (ciphertext isn't searchable that way);
+    # it's dropped from that search, matching /users' own email-less search for the same reason.
+    email_enc    = db.Column(db.Text, nullable=True)
+    phone_enc    = db.Column(db.Text, nullable=True)
     status       = db.Column(db.String(20), nullable=False, default='Active')
     students     = db.relationship('Student', secondary=student_parent,
                                    backref=db.backref('parents', lazy=True))
+
+    @property
+    def email(self):
+        if not self.email_enc:
+            return None
+        from flask import current_app
+        from application.utils import decrypt_mail_password
+        return decrypt_mail_password(self.email_enc, current_app.config['DATA_ENCRYPTION_KEY']) or None
+
+    @email.setter
+    def email(self, value):
+        from flask import current_app
+        from application.utils import encrypt_mail_password
+        self.email_enc = encrypt_mail_password(value, current_app.config['DATA_ENCRYPTION_KEY']) if value else None
+
+    @property
+    def phone(self):
+        if not self.phone_enc:
+            return None
+        from flask import current_app
+        from application.utils import decrypt_mail_password
+        return decrypt_mail_password(self.phone_enc, current_app.config['DATA_ENCRYPTION_KEY']) or None
+
+    @phone.setter
+    def phone(self, value):
+        from flask import current_app
+        from application.utils import encrypt_mail_password
+        self.phone_enc = encrypt_mail_password(value, current_app.config['DATA_ENCRYPTION_KEY']) if value else None
 
 
 class BulkUploadLog(db.Model):
